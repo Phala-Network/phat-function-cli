@@ -16,7 +16,7 @@ const MAX_BUILD_SIZE = 1024 * 1024
 const BUILD_CODE_TEMPLATE = `
   // @ts-ignore
   import entry from '{filePath}';
-  (globalThis as any).scriptOutput = entry();
+  (globalThis as any).scriptOutput = entry((globalThis as any).scriptArgs);
 `
 
 const getBaseConfig = (

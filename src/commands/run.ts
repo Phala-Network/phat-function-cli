@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { Args, Command } from '@oclif/core'
+import { Args, Command, Flags } from '@oclif/core'
 
 import { resolveToAbsolutePath } from '../lib/utils'
 import { runQuickJs } from '../lib/runQuickJs'
@@ -7,18 +7,29 @@ import { runQuickJs } from '../lib/runQuickJs'
 export default class Run extends Command {
   static description = 'Run JS in QuickJS runtime'
 
+  static flags = {
+    scriptArgs: Flags.string({
+      char: 'a',
+      description: 'Script Arguments',
+      multiple: true,
+    }),
+  }
+
   static args = {
-    file: Args.string({
+    script: Args.string({
       description: 'The location of the JS file',
       required: true,
     }),
   }
 
   public async run(): Promise<void> {
-    let { args: { file } } = await this.parse(Run)
-    file = resolveToAbsolutePath(file)
-    const js = readFileSync(file, 'utf8')
-    const output = await runQuickJs(js)
+    const {
+      flags: { scriptArgs = [] },
+      args: { script },
+    } = await this.parse(Run)
+    const scriptPath = resolveToAbsolutePath(script)
+    const js = readFileSync(scriptPath, 'utf8')
+    const output = await runQuickJs(js, scriptArgs)
     this.log(`JS Execution output: ${output}`)
   }
 }
