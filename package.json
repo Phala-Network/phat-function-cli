@@ -1,0 +1,78 @@
+{
+  "name": "phala-sls",
+  "version": "0.0.2",
+  "description": "CLI for Phala Functions",
+  "bin": {
+    "phala-sls": "./bin/run"
+  },
+  "homepage": "https://github.com/Phala-Network/phala-sls",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Phala-Network/phala-sls"
+  },
+  "files": [
+    "/bin",
+    "/dist"
+  ],
+  "dependencies": {
+    "@oclif/core": "^2",
+    "chalk": "4",
+    "ethers": "^6.7.1",
+    "filesize": "^10.0.12",
+    "inquirer": "8",
+    "quickjs-emscripten": "^0.23.0",
+    "simple-git": "^3.19.1",
+    "terser-webpack-plugin": "^5.3.9",
+    "ts-loader": "^9.4.4",
+    "webpack": "^5.88.2",
+    "webpack-merge": "^5.9.0"
+  },
+  "devDependencies": {
+    "@oclif/test": "^2.4.5",
+    "@types/chai": "^4",
+    "@types/inquirer": "8",
+    "@types/mocha": "^9.0.0",
+    "@types/node": "^16.18.41",
+    "@typescript-eslint/eslint-plugin": "^6.5.0",
+    "@typescript-eslint/parser": "^6.5.0",
+    "chai": "^4",
+    "eslint": "^7.32.0",
+    "mocha": "^9",
+    "oclif": "^3.11.3",
+    "shx": "^0.3.3",
+    "ts-node": "^10.9.1",
+    "tslib": "^2.6.2",
+    "typescript": "^4.9.5"
+  },
+  "oclif": {
+    "bin": "phala-sls",
+    "dirname": "phala-sls",
+    "commands": "./dist/commands",
+    "topicSeparator": " ",
+    "topics": {
+      "init": {
+        "description": "Create a new project from template"
+      },
+      "build": {
+        "description": "Build a production bundle of your JS"
+      },
+      "run": {
+        "description": "Run JS in QuickJS runtime"
+      },
+      "watch": {
+        "description": "Watch events from contract"
+      }
+    }
+  },
+  "scripts": {
+    "build": "shx rm -rf dist && tsc -b",
+    "lint": "eslint . --ext .ts --config .eslintrc",
+    "test": "mocha --forbid-only \"test/**/*.test.ts\""
+  },
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "types": "dist/index.d.ts"
+}
