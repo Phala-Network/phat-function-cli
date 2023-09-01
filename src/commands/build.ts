@@ -13,7 +13,11 @@ import { formatWebpackMessages } from '../lib/formatWebpackMessages'
 
 const MAX_BUILD_SIZE = 1024 * 1024
 
-const BUILD_CODE_TEMPLATE = `import entry from '{filePath}';(globalThis as any).scriptOutput = entry();`
+const BUILD_CODE_TEMPLATE = `
+  // @ts-ignore
+  import entry from '{filePath}';
+  (globalThis as any).scriptOutput = entry();
+`
 
 const getBaseConfig = (
   buildEntries: Configuration['entry'],
@@ -40,7 +44,7 @@ const getBaseConfig = (
   module: {
     rules: [
       {
-        test: /\.tsx?$/,
+        test: /\.ts$/,
         exclude: /node_modules/,
         loader: require.resolve('ts-loader'),
         options: {
@@ -53,7 +57,10 @@ const getBaseConfig = (
   },
 
   resolve: {
-    extensions: ['.tsx', '.ts', '.js', '.json'],
+    extensionAlias: {
+      '.js': ['.js', '.ts'],
+    },
+    extensions: ['.ts', '.js'],
   },
 
   output: {
@@ -63,7 +70,7 @@ const getBaseConfig = (
 })
 
 function modifyFilePath(filePath: string) {
-  let newFilePath = filePath.replace(/\/([^/]+)$/, '/_$1.ts')
+  let newFilePath = filePath.replace(/\/([^/]+)$/, '/_$1')
   if (!newFilePath.endsWith('.ts')) {
     newFilePath += '.ts'
   }
@@ -85,7 +92,7 @@ async function runWebpack({
   isDev: boolean,
   clean: boolean,
 }): Promise<Stats> {
-  const virtualModules = new VirtualModulesPlugin(Object.entries(buildEntries || {}).reduce((acc, [key, value]) => {
+  const virtualModules = new VirtualModulesPlugin(Object.entries(buildEntries || {}).reduce((acc, [, value]) => {
     acc[path.join(projectDir, modifyFilePath(value))] = BUILD_CODE_TEMPLATE.replace(/{filePath}/g, path.join(projectDir, value))
     return acc
   }, {} as Record<string, string>))
@@ -103,7 +110,6 @@ async function runWebpack({
       plugins: [
         virtualModules,
       ]
-
     },
   )
 
