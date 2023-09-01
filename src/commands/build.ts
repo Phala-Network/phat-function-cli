@@ -2,6 +2,7 @@ import { lstatSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { Command, Flags, ux } from '@oclif/core'
 import webpack, { Configuration, Stats } from 'webpack'
+import VirtualModulesPlugin from 'webpack-virtual-modules'
 import { merge, mergeWithCustomize, customizeArray } from 'webpack-merge'
 import TerserPlugin from 'terser-webpack-plugin'
 import { filesize } from 'filesize'
@@ -11,6 +12,12 @@ import { resolveToAbsolutePath } from '../lib/utils'
 import { formatWebpackMessages } from '../lib/formatWebpackMessages'
 
 const MAX_BUILD_SIZE = 1024 * 1024
+
+const BUILD_CODE_TEMPLATE = `
+  // @ts-ignore
+  import entry from '{filePath}';
+  (globalThis as any).scriptOutput = entry((globalThis as any).scriptArgs);
+`
 
 const getBaseConfig = (
   buildEntries: Configuration['entry'],
@@ -22,7 +29,7 @@ const getBaseConfig = (
   mode: development ? 'development' : 'production',
   context: projectDir,
   entry: buildEntries,
-  optimization: {
+  optimization: development ? {} : {
     usedExports: true,
     minimize: true,
     minimizer: [new TerserPlugin({
@@ -37,7 +44,7 @@ const getBaseConfig = (
   module: {
     rules: [
       {
-        test: /\.tsx?$/,
+        test: /\.ts$/,
         exclude: /node_modules/,
         loader: require.resolve('ts-loader'),
         options: {
@@ -50,7 +57,10 @@ const getBaseConfig = (
   },
 
   resolve: {
-    extensions: ['.tsx', '.ts', '.js', '.json'],
+    extensionAlias: {
+      '.js': ['.js', '.ts'],
+    },
+    extensions: ['.ts', '.js'],
   },
 
   output: {
@@ -58,6 +68,14 @@ const getBaseConfig = (
     filename: '[name].js',
   },
 })
+
+function modifyFilePath(filePath: string) {
+  let newFilePath = filePath.replace(/\/([^/]+)$/, '/_$1')
+  if (!newFilePath.endsWith('.ts')) {
+    newFilePath += '.ts'
+  }
+  return newFilePath
+}
 
 async function runWebpack({
   buildEntries,
@@ -74,9 +92,25 @@ async function runWebpack({
   isDev: boolean,
   clean: boolean,
 }): Promise<Stats> {
+  const virtualModules = new VirtualModulesPlugin(Object.entries(buildEntries || {}).reduce((acc, [, value]) => {
+    acc[path.join(projectDir, modifyFilePath(value))] = BUILD_CODE_TEMPLATE.replace(/{filePath}/g, path.join(projectDir, value))
+    return acc
+  }, {} as Record<string, string>))
+  const newBuildEntries = Object.entries(buildEntries || {}).reduce((acc, [key, value]) => {
+    acc[key] = path.join(projectDir, modifyFilePath(value))
+    return acc
+  }, {} as Record<string, string>)
+
   let config = merge(
-    getBaseConfig(buildEntries, projectDir, outputDir, isDev),
-    { output: { clean } },
+    getBaseConfig(newBuildEntries, projectDir, outputDir, isDev),
+    {
+      output: {
+        clean
+      },
+      plugins: [
+        virtualModules,
+      ]
+    },
   )
 
   if (customWebpack) {
@@ -183,16 +217,15 @@ export default class Build extends Command {
       this.error('Location directory is not a valid directory')
     }
 
-    const defaultEntry = path.join(directory, 'src/index')
     const outputDir = path.resolve(directory, flags.output ?? 'dist')
     let buildEntries: Record<string, string> = {
-      index: defaultEntry,
+      index: 'src/index',
     }
     const pjson = JSON.parse(readFileSync(path.join(directory, 'package.json')).toString())
     if (pjson.exports && typeof pjson.exports !== 'string') {
       buildEntries = Object.entries(pjson.exports as Record<string, string>).reduce(
         (acc, [key, value]) => {
-          acc[key] = path.resolve(directory, value)
+          acc[key] = value
           return acc
         },
         { ...buildEntries },

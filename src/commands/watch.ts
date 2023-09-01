@@ -67,7 +67,7 @@ export default class Watch extends Command {
       })
 
       const js = readFileSync(resolveToAbsolutePath(args.js), 'utf8')
-      const output = await runQuickJs(js)
+      const output = await runQuickJs(js, [eventArgs.id.toString(), eventArgs.profileId.toString()])
       console.info(`JS Execution output: ${output}`)
       const action = ethers.hexlify(ethers.concat([
         new Uint8Array([0]),
