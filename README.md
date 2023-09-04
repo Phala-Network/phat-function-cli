@@ -1,18 +1,18 @@
-# phala-sls
+# @phala/fn
 
 ## Getting Started
 ```shell
 # Starting a new project from a template
-npx phala-sls init NAME
+npx @phala/fn init NAME
 
 # Install dependencies
 yarn install
 
 # Compile JS code
-npx phala-sls build
+npx @phala/fn build
 
 # Test your JS code
-npx phala-sls run dist/index.js
+npx @phala/fn run dist/index.js
 
 # Start a local node
 yarn run node
@@ -21,7 +21,7 @@ yarn run node
 yarn run test-deploy
 
 # Start a watching server
-npx phala-sls watch CONTRACT_ADDRESS artifacts/contracts/TestLensOracle.sol/TestLensOracle.json dist/index.js
+$px @phala/fn watch CONTRACT_ADDRESS artifacts/contracts/TestLensOracle.sol/TestLensOracle.json dist/index.js
 
 # Push a request
 CONTRACT_ADDRESS=XXX yarn run test-push-request
