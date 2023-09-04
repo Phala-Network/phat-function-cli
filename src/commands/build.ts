@@ -50,6 +50,8 @@ const getBaseConfig = (
         options: {
           compilerOptions: {
             declaration: false,
+            moduleResolution: 'node',
+            module: 'es6',
           },
         },
       },
