@@ -3,13 +3,14 @@
 ## Getting Started
 ```shell
 # Starting a new project from a template
-npx @phala/fn init NAME
+npx @phala/fn init <your project name>
 
 # Install dependencies
+cd <your project name>
 yarn install
 
 # Compile JS code
-npx @phala/fn build
+npx @phala/fn build src/index.ts
 
 # Test your JS code
 npx @phala/fn run dist/index.js
@@ -21,8 +22,8 @@ yarn run node
 yarn run test-deploy
 
 # Start a watching server
-$px @phala/fn watch CONTRACT_ADDRESS artifacts/contracts/TestLensOracle.sol/TestLensOracle.json dist/index.js
+npx @phala/fn watch <your deployed contract address> artifacts/contracts/TestLensOracle.sol/TestLensOracle.json dist/index.js
 
 # Push a request
-CONTRACT_ADDRESS=XXX yarn run test-push-request
+CONTRACT_ADDRESS=<your deployed contract address> yarn run test-push-request
 ```
