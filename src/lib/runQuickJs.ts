@@ -1,6 +1,6 @@
 import { getQuickJS, QuickJSContext } from 'quickjs-emscripten'
 
-import { HttpVerb} from 'then-request'
+import { type HttpVerb} from 'then-request'
 import request from 'sync-request'
 
 function isHexString(str: string): boolean {
