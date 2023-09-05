@@ -6,11 +6,12 @@ import { runQuickJs } from '../lib/runQuickJs'
 
 export default class Run extends Command {
   static description = 'Run JS in QuickJS runtime'
+  public static enableJsonFlag = true
 
   static flags = {
     scriptArgs: Flags.string({
       char: 'a',
-      description: 'Script Arguments',
+      description: 'Script arguments',
       multiple: true,
     }),
   }
@@ -22,14 +23,17 @@ export default class Run extends Command {
     }),
   }
 
-  public async run(): Promise<void> {
+  public async run(): Promise<{ output: string }> {
     const {
       flags: { scriptArgs = [] },
       args: { script },
     } = await this.parse(Run)
     const scriptPath = resolveToAbsolutePath(script)
     const js = readFileSync(scriptPath, 'utf8')
-    const output = await runQuickJs(js, scriptArgs)
-    this.log(`JS Execution output: ${output}`)
+    const output = await runQuickJs(js, scriptArgs, { silent: this.jsonEnabled() })
+    this.log(JSON.stringify({ output }))
+    return {
+      output,
+    }
   }
 }
