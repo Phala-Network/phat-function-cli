@@ -1,6 +1,6 @@
 import { lstatSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { Command, Flags, ux } from '@oclif/core'
+import { Args, Command, Flags, ux } from '@oclif/core'
 import webpack, { Configuration, Stats } from 'webpack'
 import VirtualModulesPlugin from 'webpack-virtual-modules'
 import { merge, mergeWithCustomize, customizeArray } from 'webpack-merge'
@@ -16,7 +16,7 @@ const MAX_BUILD_SIZE = 1024 * 1024
 const BUILD_CODE_TEMPLATE = `
   // @ts-ignore
   import entry from '{filePath}';
-  (globalThis as any).scriptOutput = entry((globalThis as any).scriptArgs);
+  (globalThis as any).scriptOutput = entry.apply(null, (globalThis as any).scriptArgs);
 `
 
 const getBaseConfig = (
@@ -50,6 +50,8 @@ const getBaseConfig = (
         options: {
           compilerOptions: {
             declaration: false,
+            moduleResolution: 'node',
+            module: 'es6',
           },
         },
       },
@@ -188,7 +190,15 @@ function printFileSizesAfterBuild(
 }
 
 export default class Build extends Command {
-  static description = 'Build a production bundle of your JS'
+  static description = 'Build a production bundle of the function script'
+
+  static args = {
+    script: Args.string({
+      description: 'The function script file',
+      require: true,
+      default: 'src/index',
+    }),
+  }
 
   static flags = {
     location: Flags.string({
@@ -210,7 +220,7 @@ export default class Build extends Command {
   }
 
   public async run(): Promise<void> {
-    const { flags } = await this.parse(Build)
+    const { flags, args: { script } } = await this.parse(Build)
     const directory = flags.location ? resolveToAbsolutePath(flags.location) : process.cwd()
     const isDev = flags.mode === 'development' || flags.mode === 'dev'
     if (!lstatSync(directory).isDirectory()) {
@@ -219,7 +229,7 @@ export default class Build extends Command {
 
     const outputDir = path.resolve(directory, flags.output ?? 'dist')
     let buildEntries: Record<string, string> = {
-      index: 'src/index',
+      index: script,
     }
     const pjson = JSON.parse(readFileSync(path.join(directory, 'package.json')).toString())
     if (pjson.exports && typeof pjson.exports !== 'string') {

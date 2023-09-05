@@ -7,13 +7,9 @@ import inquirer from 'inquirer'
 import simpleGit from 'simple-git'
 
 const TEMPLATE_ALIASES: Record<string, { url: string; description: string }> = {
-  'lens-oracle': {
-    url: 'https://github.com/pacoyang/lens-stats',
-    description: 'A minimal oracle template for lens.',
-  },
-  'phat-oracle': {
-    url: 'https://github.com/pacoyang/phat-oracle-contract',
-    description: 'A phat oracle contract template.',
+  'lensapi-oracle-consumer-contract': {
+    url: 'https://github.com/Phala-Network/lensapi-oracle-consumer-contract',
+    description: 'Polygon Consumer Contract for LensAPI Oracle',
   },
 }
 

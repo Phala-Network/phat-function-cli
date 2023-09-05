@@ -1,28 +1,35 @@
-# phala-sls
+# @phala/fn
 
 ## Getting Started
 ```shell
 # Starting a new project from a template
-npx phala-sls init NAME
+# Choose template `lensapi-oracle-consumer-contract`
+npx @phala/fn init <your project name>
 
 # Install dependencies
+cd <your project name>
 yarn install
 
 # Compile JS code
-npx phala-sls build
+npx @phala/fn build src/index.ts
 
 # Test your JS code
-npx phala-sls run dist/index.js
+npx @phala/fn run dist/index.js
+# Test your JS code with multiple arguments
+npx @phala/fn run dist/index.js -a 1 2 3
 
-# Start a local node
-yarn run node
+# Start a local hardhat node
+yarn hardhat node
 
-# Deploy a contract and get the contract address
-yarn run test-deploy
+# Run the e2e test
+yarn hardhat test --network localhost
+
+# Deploy and get the contract address
+yarn localhost-deploy
 
 # Start a watching server
-npx phala-sls watch CONTRACT_ADDRESS artifacts/contracts/TestLensOracle.sol/TestLensOracle.json dist/index.js
+yarn localhost-watch <your deployed contract address> artifacts/contracts/TestLensApiConsumerContract.sol/TestLensApiConsumerContract.json dist/index.js -a https://api-mumbai.lens.dev/
 
 # Push a request
-CONTRACT_ADDRESS=XXX yarn run test-push-request
+LOCALHOST_CONSUMER_CONTRACT_ADDRESS=<your deployed contract address> yarn localhost-push-request
 ```

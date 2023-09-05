@@ -1,16 +1,16 @@
 {
-  "name": "phala-sls",
-  "version": "0.0.3",
-  "description": "CLI for Phala Functions",
+  "name": "@phala/fn",
+  "version": "0.0.9",
+  "description": "Phat Function CLI toolkit",
   "bin": {
-    "phala-sls": "./bin/run"
+    "phat-fn": "bin/run"
   },
-  "homepage": "https://github.com/Phala-Network/phala-sls",
+  "homepage": "https://github.com/Phala-Network/phat-function-cli",
   "license": "MIT",
   "main": "dist/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Phala-Network/phala-sls"
+    "url": "git+https://github.com/Phala-Network/phat-function-cli.git"
   },
   "files": [
     "/bin",
@@ -24,6 +24,7 @@
     "inquirer": "8",
     "quickjs-emscripten": "^0.23.0",
     "simple-git": "^3.19.1",
+    "sync-request": "^6.1.0",
     "terser-webpack-plugin": "^5.3.9",
     "ts-loader": "^9.4.4",
     "webpack": "^5.88.2",
@@ -48,8 +49,8 @@
     "typescript": "^4.9.5"
   },
   "oclif": {
-    "bin": "phala-sls",
-    "dirname": "phala-sls",
+    "bin": "@phala/fn",
+    "dirname": "@phala/fn",
     "commands": "./dist/commands",
     "topicSeparator": " ",
     "topics": {
@@ -75,5 +76,21 @@
   "engines": {
     "node": ">=12.0.0"
   },
-  "types": "dist/index.d.ts"
+  "types": "dist/index.d.ts",
+  "bugs": {
+    "url": "https://github.com/Phala-Network/phat-function-cli/issues"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [
+    "phat",
+    "contract",
+    "phala",
+    "phala",
+    "network",
+    "phat",
+    "function"
+  ],
+  "author": "Phala Network"
 }

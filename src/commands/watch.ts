@@ -17,6 +17,16 @@ export default class Watch extends Command {
     rpc: Flags.string({
       description: 'RPC endpoint',
     }),
+    scriptArgs: Flags.string({
+      char: 'a',
+      description: 'Script Arguments',
+      multiple: true,
+      default: [],
+    }),
+    once: Flags.boolean({
+      description: 'Process events once only',
+      default: false,
+    }),
   }
 
   static args = {
@@ -58,20 +68,18 @@ export default class Watch extends Command {
     const contract = new ethers.Contract(args.address, contractJson.abi, signer)
     console.log(chalk.green(`Listening for ${contractJson.contractName} MessageQueued events...`))
     contract.on('MessageQueued', async (from, to, event) => {
-      const [, data] = event.args
-      const abiCoder = ethers.AbiCoder.defaultAbiCoder()
-      const eventArgs = abiCoder.decode(['uint id', 'string profileId'], data)
+      const [tail, data] = event.args
       console.info('Received event [MessageQueued]:', {
-        id: eventArgs.id.toString(),
-        profileId: eventArgs.profileId.toString(),
+        tail,
+        data,
       })
 
       const js = readFileSync(resolveToAbsolutePath(args.js), 'utf8')
-      const output = await runQuickJs(js, [eventArgs.id.toString(), eventArgs.profileId.toString()])
+      const output = await runQuickJs(js, [data, ...flags.scriptArgs])
       console.info(`JS Execution output: ${output}`)
       const action = ethers.hexlify(ethers.concat([
         new Uint8Array([0]),
-        abiCoder.encode(['uint', 'uint', 'uint256'], [0, eventArgs.id.toString(), output]),
+        output,
       ]))
       await contract.rollupU256CondEq(
         // cond
@@ -83,6 +91,9 @@ export default class Watch extends Command {
         // actions
         [action],
       )
+      if (flags.once) {
+        process.exit()
+      }
     })
   }
 }
