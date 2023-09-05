@@ -23,7 +23,7 @@ export default class Watch extends Command {
       multiple: true,
       default: [],
     }),
-    onece: Flags.boolean({
+    once: Flags.boolean({
       description: 'Process events once only',
       default: false,
     }),
@@ -91,7 +91,7 @@ export default class Watch extends Command {
         // actions
         [action],
       )
-      if (flags.onece) {
+      if (flags.once) {
         process.exit()
       }
     })
