@@ -32,7 +32,7 @@ function syncRequest(options: {
   }
 }
 
-function patchPink(context: QuickJSContext) {
+function polyfillPink(context: QuickJSContext) {
   const pinkHandle = context.newObject()
 
   const httpRequestHandle = context.newFunction('httpRequest', (args) => {
@@ -70,7 +70,7 @@ function patchPink(context: QuickJSContext) {
   pinkHandle.dispose()
 }
 
-function patchConsole(context: QuickJSContext) {
+function polyfillConsole(context: QuickJSContext) {
   const consoleHandle = context.newObject()
 
   const infoHandle = context.newFunction('info', (...args) => {
@@ -116,8 +116,8 @@ export async function runQuickJs(code: string, args: string[] = []) {
   const QuickJS = await getQuickJS()
   const runtime = QuickJS.newRuntime()
   const context = runtime.newContext()
-  patchConsole(context)
-  patchPink(context)
+  polyfillConsole(context)
+  polyfillPink(context)
   const scriptArgs = context.newArray()
   args.map((arg, i) => {
     const handle = context.newString(arg)
