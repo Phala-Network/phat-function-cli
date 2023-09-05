@@ -19,7 +19,7 @@ function syncRequest(options: {
   body?: string,
   returnTextBody?: boolean,
 }) {
-  if (options.body && isHexString(options.body)) {
+  if (typeof options.body === 'string' && isHexString(options.body)) {
     options.body = hexToString(options.body)
   }
   const res = request(options.method || 'GET', options.url, {
