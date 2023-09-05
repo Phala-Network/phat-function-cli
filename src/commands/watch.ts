@@ -19,7 +19,7 @@ export default class Watch extends Command {
     }),
     scriptArgs: Flags.string({
       char: 'a',
-      description: 'Script Arguments',
+      description: 'Script arguments',
       multiple: true,
       default: [],
     }),

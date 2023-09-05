@@ -1,6 +1,6 @@
 import { getQuickJS, QuickJSContext } from 'quickjs-emscripten'
 
-import { type HttpVerb} from 'then-request'
+import { type HttpVerb } from 'then-request'
 import request from 'sync-request'
 
 function isHexString(str: string): boolean {
@@ -13,11 +13,11 @@ const hexToString = (hex: string): string => {
 }
 
 function syncRequest(options: {
-  url: string,
-  method?: HttpVerb,
-  headers?: Record<string, string>,
-  body?: string,
-  returnTextBody?: boolean,
+  url: string
+  method?: HttpVerb
+  headers?: Record<string, string>
+  body?: string
+  returnTextBody?: boolean
 }) {
   if (typeof options.body === 'string' && isHexString(options.body)) {
     options.body = hexToString(options.body)
@@ -28,7 +28,7 @@ function syncRequest(options: {
   })
   return {
     statusCode: res.statusCode,
-    body: res.getBody(options.returnTextBody ? 'utf8' : '')
+    body: res.getBody(options.returnTextBody ? 'utf8' : ''),
   }
 }
 
@@ -46,21 +46,24 @@ function polyfillPink(context: QuickJSContext) {
     return resHandle
   })
 
-  const batchHttpRequestHandle = context.newFunction('batchHttpRequest', (args) => {
-    const nativeArgs = context.dump(args)
-    const responses = nativeArgs.map(syncRequest)
-    const responsesHandle = context.newArray()
-    responses.map((res: { statusCode: number, body: string }, i: number) => {
-      const resHandle = context.newObject()
-      const statusHandle = context.newNumber(res.statusCode)
-      context.setProp(resHandle, 'statusCode', statusHandle)
-      const bodyHandle = context.newString(res.body)
-      context.setProp(resHandle, 'body', bodyHandle)
-      context.setProp(responsesHandle, i, resHandle)
-      resHandle.dispose()
-    })
-    return responsesHandle
-  })
+  const batchHttpRequestHandle = context.newFunction(
+    'batchHttpRequest',
+    (args) => {
+      const nativeArgs = context.dump(args)
+      const responses = nativeArgs.map(syncRequest)
+      const responsesHandle = context.newArray()
+      responses.map((res: { statusCode: number; body: string }, i: number) => {
+        const resHandle = context.newObject()
+        const statusHandle = context.newNumber(res.statusCode)
+        context.setProp(resHandle, 'statusCode', statusHandle)
+        const bodyHandle = context.newString(res.body)
+        context.setProp(resHandle, 'body', bodyHandle)
+        context.setProp(responsesHandle, i, resHandle)
+        resHandle.dispose()
+      })
+      return responsesHandle
+    }
+  )
 
   context.setProp(pinkHandle, 'httpRequest', httpRequestHandle)
   context.setProp(pinkHandle, 'batchHttpRequest', batchHttpRequestHandle)
@@ -112,11 +115,34 @@ function polyfillConsole(context: QuickJSContext) {
   debugHandle.dispose()
 }
 
-export async function runQuickJs(code: string, args: string[] = []) {
+function polyfillSilentConsole(context: QuickJSContext) {
+  const consoleHandle = context.newObject()
+
+  const handle = context.newFunction('info', () => {})
+  context.setProp(consoleHandle, 'info', handle)
+  context.setProp(consoleHandle, 'log', handle)
+  context.setProp(consoleHandle, 'warn', handle)
+  context.setProp(consoleHandle, 'error', handle)
+  context.setProp(consoleHandle, 'debug', handle)
+
+  context.setProp(context.global, 'console', consoleHandle)
+  consoleHandle.dispose()
+  handle.dispose()
+}
+
+export async function runQuickJs(
+  code: string,
+  args: string[] = [],
+  options = { silent: false }
+) {
   const QuickJS = await getQuickJS()
   const runtime = QuickJS.newRuntime()
   const context = runtime.newContext()
-  polyfillConsole(context)
+  if (options.silent) {
+    polyfillSilentConsole(context)
+  } else {
+    polyfillConsole(context)
+  }
   polyfillPink(context)
   const scriptArgs = context.newArray()
   args.map((arg, i) => {
@@ -135,7 +161,9 @@ export async function runQuickJs(code: string, args: string[] = []) {
     throw new Error(error.message)
   }
   context.unwrapResult(result).dispose()
-  const output = context.getProp(context.global, 'scriptOutput').consume(context.dump)
+  const output = context
+    .getProp(context.global, 'scriptOutput')
+    .consume(context.dump)
   context.dispose()
   runtime.dispose()
   return output
