@@ -3,6 +3,7 @@ import path from 'node:path'
 import { Args, Command, Flags, ux } from '@oclif/core'
 import webpack, { Configuration, Stats } from 'webpack'
 import VirtualModulesPlugin from 'webpack-virtual-modules'
+import NodeExternals from 'webpack-node-externals'
 import { merge, mergeWithCustomize, customizeArray } from 'webpack-merge'
 import TerserPlugin from 'terser-webpack-plugin'
 import { filesize } from 'filesize'
@@ -41,6 +42,12 @@ const getBaseConfig = (
       },
     })],
   },
+  externals: [NodeExternals({
+    allowlist: [
+      '@phala/ethers',
+      '@phala/pink-env',
+    ],
+  })],
   module: {
     rules: [
       {
