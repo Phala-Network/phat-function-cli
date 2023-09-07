@@ -18,6 +18,7 @@
   ],
   "dependencies": {
     "@oclif/core": "^2",
+    "@polkadot/util-crypto": "^12.4.2",
     "chalk": "4",
     "ethers": "^6.7.1",
     "filesize": "^10.0.12",

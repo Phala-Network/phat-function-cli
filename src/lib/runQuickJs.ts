@@ -1,7 +1,11 @@
 import { getQuickJS, QuickJSContext } from 'quickjs-emscripten'
-
 import { type HttpVerb } from 'then-request'
 import request from 'sync-request'
+import {
+  blake2AsU8a,
+  sha256AsU8a,
+  keccak256AsU8a,
+} from '@polkadot/util-crypto'
 
 function isHexString(str: string): boolean {
   const regex = /^0x[0-9a-f]+$/
@@ -10,6 +14,28 @@ function isHexString(str: string): boolean {
 
 const hexToString = (hex: string): string => {
   return Buffer.from(hex.substring(2), 'hex').toString()
+}
+
+function deriveSecret(salt: Uint8Array | string): Uint8Array {
+  const buffer = new Uint8Array(4 + (salt instanceof Uint8Array ? salt.length : Buffer.from(salt).length))
+  buffer.set([1, 2, 3, 4], 0)
+  buffer.set(salt instanceof Uint8Array ? salt : Buffer.from(salt), 4)
+  return blake2AsU8a(buffer)
+}
+
+function hash(algorithm: string, message: Uint8Array | string): Uint8Array {
+  switch (algorithm) {
+  case 'blake2b128':
+    return blake2AsU8a(message).slice(0, 16)
+  case 'blake2b256':
+    return blake2AsU8a(message)
+  case 'sha256':
+    return sha256AsU8a(message)
+  case 'keccak256':
+    return keccak256AsU8a(message)
+  default:
+    throw new Error('not supported algorithm: ' + algorithm)
+  }
 }
 
 function syncRequest(options: {
@@ -65,11 +91,39 @@ function polyfillPink(context: QuickJSContext) {
     }
   )
 
+  const deriveSecretHandle = context.newFunction(
+    'deriveSecret',
+    (args) => {
+      let salt = context.dump(args)
+      if (typeof salt === 'object') {
+        salt = new Uint8Array(Object.values(salt))
+      }
+      return context.evalCode(`new Uint8Array([${deriveSecret(salt)}]);`)
+    }
+  )
+
+  const hashHandle = context.newFunction(
+    'hash',
+    (...args) => {
+      const nativeArgs = args.map(context.dump)
+      const algorithm = nativeArgs[0]
+      let message = nativeArgs[1]
+      if (typeof message === 'object') {
+        message = new Uint8Array(Object.values(message))
+      }
+      return context.evalCode(`new Uint8Array([${hash(algorithm, message)}]);`)
+    }
+  )
+
   context.setProp(pinkHandle, 'httpRequest', httpRequestHandle)
   context.setProp(pinkHandle, 'batchHttpRequest', batchHttpRequestHandle)
+  context.setProp(pinkHandle, 'deriveSecret', deriveSecretHandle)
+  context.setProp(pinkHandle, 'hash', hashHandle)
   context.setProp(context.global, 'pink', pinkHandle)
   httpRequestHandle.dispose()
   batchHttpRequestHandle.dispose()
+  deriveSecretHandle.dispose()
+  hashHandle.dispose()
   pinkHandle.dispose()
 }
 

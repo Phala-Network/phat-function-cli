@@ -42,7 +42,12 @@ const getBaseConfig = (
       },
     })],
   },
-  externals: [NodeExternals()],
+  externals: [NodeExternals({
+    allowlist: [
+      '@phala/ethers',
+      '@phala/pink-env',
+    ],
+  })],
   module: {
     rules: [
       {
