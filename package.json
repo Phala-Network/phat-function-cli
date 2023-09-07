@@ -1,6 +1,6 @@
 {
   "name": "@phala/fn",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Phat Function CLI toolkit",
   "bin": {
     "phat-fn": "bin/run"
