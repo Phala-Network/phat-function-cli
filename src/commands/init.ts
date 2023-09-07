@@ -111,6 +111,9 @@ export default class Init extends Command {
 
     await asyncFs.rm(path.resolve(localDir, '.git'), { recursive: true })
 
-    this.log(`The project is created in ${localDir}`)
+    this.log(`The project is created in ${localDir} 🎉`)
+    this.log('Now run:\n')
+    this.log(`  cd ${name}`)
+    this.log('  npm install')
   }
 }
