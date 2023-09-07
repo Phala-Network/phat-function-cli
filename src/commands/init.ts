@@ -102,7 +102,7 @@ export default class Init extends Command {
 
     ux.action.start(`Downloading the template: ${githubRepository}`)
     try {
-      await git.clone(githubRepository, localDir, {})
+      await git.clone(githubRepository, localDir, { '--depth': 1 })
     } catch (error: any) {
       return this.error(error)
     }
