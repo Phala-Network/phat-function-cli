@@ -102,7 +102,7 @@ export default class Init extends Command {
 
     ux.action.start(`Downloading the template: ${githubRepository}`)
     try {
-      await git.clone(githubRepository, localDir, {})
+      await git.clone(githubRepository, localDir, { '--depth': 1 })
     } catch (error: any) {
       return this.error(error)
     }
@@ -111,6 +111,9 @@ export default class Init extends Command {
 
     await asyncFs.rm(path.resolve(localDir, '.git'), { recursive: true })
 
-    this.log(`The project is created in ${localDir}`)
+    this.log(`The project is created in ${localDir} 🎉`)
+    this.log('Now run:\n')
+    this.log(`  cd ${name}`)
+    this.log('  npm install')
   }
 }
