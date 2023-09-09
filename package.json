@@ -30,6 +30,7 @@
     "ts-loader": "^9.4.4",
     "ts-node": "^10.9.1",
     "typescript": "^5.2.2",
+    "upath": "^2.0.1",
     "webpack": "^5.88.2",
     "webpack-merge": "^5.9.0",
     "webpack-node-externals": "^3.0.0",

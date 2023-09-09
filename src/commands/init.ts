@@ -1,5 +1,5 @@
 import { promises as asyncFs } from 'node:fs'
-import path from 'node:path'
+import upath from 'upath'
 
 import { Command, Flags, Args, ux } from '@oclif/core'
 import chalk from 'chalk'
@@ -23,9 +23,9 @@ const git = simpleGit({
   binary: 'git',
 })
 
-async function directoryIsEmpty(path: string) {
+async function directoryIsEmpty(directoryPath: string) {
   try {
-    const directory = await asyncFs.opendir(path)
+    const directory = await asyncFs.opendir(directoryPath)
     const entry = await directory.read()
     await directory.close()
     return entry === null
@@ -68,7 +68,7 @@ export default class Init extends Command {
       args: { name },
       flags: { template, dir, remove },
     } = await this.parse(Init)
-    const localDir = path.resolve(dir || name)
+    const localDir = upath.resolve(dir || name)
     const isEmptyDir = await directoryIsEmpty(localDir)
     if (!isEmptyDir) {
       if (!remove) {
@@ -109,7 +109,7 @@ export default class Init extends Command {
 
     ux.action.stop('✔')
 
-    await asyncFs.rm(path.resolve(localDir, '.git'), { recursive: true })
+    await asyncFs.rm(upath.resolve(localDir, '.git'), { recursive: true })
 
     this.log(`The project is created in ${localDir} 🎉`)
     this.log('Now run:\n')

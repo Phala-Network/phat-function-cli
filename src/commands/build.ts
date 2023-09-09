@@ -1,5 +1,6 @@
 import { lstatSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
+import upath from 'upath'
 import { Args, Command, Flags, ux } from '@oclif/core'
 import webpack, { Configuration, Stats } from 'webpack'
 import VirtualModulesPlugin from 'webpack-virtual-modules'
@@ -66,9 +67,6 @@ const getBaseConfig = (
   },
 
   resolve: {
-    extensionAlias: {
-      '.js': ['.js', '.ts'],
-    },
     extensions: ['.ts', '.js'],
   },
 
@@ -102,11 +100,11 @@ async function runWebpack({
   clean: boolean,
 }): Promise<Stats> {
   const virtualModules = new VirtualModulesPlugin(Object.entries(buildEntries || {}).reduce((acc, [, value]) => {
-    acc[path.join(projectDir, modifyFilePath(value))] = BUILD_CODE_TEMPLATE.replace(/{filePath}/g, path.join(projectDir, value))
+    acc[path.join(projectDir, modifyFilePath(value))] = BUILD_CODE_TEMPLATE.replace(/{filePath}/g, upath.join(projectDir, value))
     return acc
   }, {} as Record<string, string>))
   const newBuildEntries = Object.entries(buildEntries || {}).reduce((acc, [key, value]) => {
-    acc[key] = path.join(projectDir, modifyFilePath(value))
+    acc[key] = upath.join(projectDir, modifyFilePath(value))
     return acc
   }, {} as Record<string, string>)
 
@@ -160,13 +158,13 @@ function printFileSizesAfterBuild(
     console.log(chalk.green('Compiled successfully.\n'))
   }
   const assets = (json.assets ?? []).map(asset => {
-    const { size } = statSync(path.join(json.outputPath ?? '', asset.name))
+    const { size } = statSync(upath.join(json.outputPath ?? '', asset.name))
     return {
-      folder: path.join(
-        path.basename(json.outputPath ?? ''),
-        path.dirname(asset.name),
+      folder: upath.join(
+        upath.basename(json.outputPath ?? ''),
+        upath.dirname(asset.name),
       ),
-      name: path.basename(asset.name),
+      name: upath.basename(asset.name),
       size: size,
       sizeLabel: filesize(size, { base: 2, standard: 'jedec' }),
     }
@@ -234,11 +232,11 @@ export default class Build extends Command {
       this.error('Location directory is not a valid directory')
     }
 
-    const outputDir = path.resolve(directory, flags.output ?? 'dist')
+    const outputDir = upath.resolve(directory, flags.output ?? 'dist')
     let buildEntries: Record<string, string> = {
       index: script,
     }
-    const pjson = JSON.parse(readFileSync(path.join(directory, 'package.json')).toString())
+    const pjson = JSON.parse(readFileSync(upath.join(directory, 'package.json')).toString())
     if (pjson.exports && typeof pjson.exports !== 'string') {
       buildEntries = Object.entries(pjson.exports as Record<string, string>).reduce(
         (acc, [key, value]) => {
