@@ -67,9 +67,6 @@ const getBaseConfig = (
   },
 
   resolve: {
-    extensionAlias: {
-      '.js': ['.js', '.ts'],
-    },
     extensions: ['.ts', '.js'],
   },
 
