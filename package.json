@@ -18,11 +18,14 @@
   ],
   "dependencies": {
     "@oclif/core": "^2",
-    "@polkadot/util-crypto": "^12.4.2",
+    "@phala/sdk": "^0.5.2",
+    "@types/node-fetch": "2",
     "chalk": "4",
+    "dotenv": "^16.3.1",
     "ethers": "^6.7.1",
     "filesize": "^10.0.12",
     "inquirer": "8",
+    "node-fetch": "2",
     "quickjs-emscripten": "^0.23.0",
     "simple-git": "^3.19.1",
     "sync-request": "^6.1.0",
@@ -67,6 +70,12 @@
       },
       "watch": {
         "description": "Watch events from contract"
+      },
+      "upload": {
+        "description": "Upload your JS Phat Function"
+      },
+      "update": {
+        "description": "Update your JS Phat Function"
       }
     }
   },
