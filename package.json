@@ -25,7 +25,6 @@
     "ethers": "^6.7.1",
     "filesize": "^10.0.12",
     "inquirer": "8",
-    "node-fetch": "2",
     "quickjs-emscripten": "^0.23.0",
     "simple-git": "^3.19.1",
     "sync-request": "^6.1.0",

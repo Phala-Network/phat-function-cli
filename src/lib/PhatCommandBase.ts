@@ -2,9 +2,9 @@ import fs from 'node:fs'
 import upath from 'upath'
 import { Command } from '@oclif/core'
 import inquirer from 'inquirer'
-import fetch from 'node-fetch'
 import {
   OnChainRegistry,
+  unsafeGetAbiFromGitHubRepoByCodeHash,
 } from '@phala/sdk'
 import { Keyring } from '@polkadot/keyring'
 import { type KeyringPair } from '@polkadot/keyring/types'
@@ -107,17 +107,12 @@ export default abstract class PhatCommandBase extends Command {
     }
     const codeHashWithPrefix =
       codeHash && codeHash.indexOf('0x') !== 0 ? `0x${codeHash}` : codeHash
-    const url = `https://phala-network.github.io/phat-contract-artifacts/artifacts/${codeHashWithPrefix}/metadata.json`
-    const resp = await fetch(url)
-    if (resp.status !== 200) {
-      this.error(`Failed to get abi from GitHub: ${resp.status}`)
-    }
-    const text = await resp.text()
+    const abi = await unsafeGetAbiFromGitHubRepoByCodeHash(codeHashWithPrefix)
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath, { recursive: true })
     }
-    fs.writeFileSync(abiPath, text)
-    return text
+    fs.writeFileSync(abiPath, JSON.stringify(abi))
+    return abi
   }
 
   async loadAbiByContractId(registry: OnChainRegistry, contractId: string) {
