@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import upath from 'upath'
-import { Flags, ux } from '@oclif/core'
+import { Args, Flags, ux } from '@oclif/core'
 import type { Result, Struct, u16, Text, Bool } from '@polkadot/types'
 import { type AccountId } from '@polkadot/types/interfaces'
 import { Abi } from '@polkadot/api-contract'
@@ -12,8 +12,11 @@ import {
   PinkContractPromise,
   signAndSend,
 } from '@phala/sdk'
+import chalk from 'chalk'
+import { filesize } from 'filesize'
 
 import PhatCommandBase from '../lib/PhatCommandBase'
+import { MAX_BUILD_SIZE, runWebpack, printFileSizesAfterBuild } from '../lib/runWebpack'
 
 interface WorkflowCodec extends Struct {
   id: u16
@@ -24,6 +27,14 @@ interface WorkflowCodec extends Struct {
 
 export default class Update extends PhatCommandBase {
   static description = 'Upload JS to Phat Function'
+
+  static args = {
+    script: Args.string({
+      description: 'The function script file',
+      require: true,
+      default: 'src/index',
+    }),
+  }
 
   static flags = {
     accountFilePath: Flags.string({
@@ -49,11 +60,44 @@ export default class Update extends PhatCommandBase {
       options: ['production', 'prod', 'development', 'dev'],
       default: 'development',
     })(),
+    build: Flags.boolean({
+      char: 'b',
+      default: true,
+    }),
   }
 
   public async run(): Promise<void> {
-    const { flags } = await this.parse(Update)
+    const { flags, args: { script } } = await this.parse(Update)
     const isDev = flags.mode === 'development' || flags.mode === 'dev'
+
+    if (flags.build) {
+      const directory = process.cwd()
+      let buildAssets = []
+      try {
+        ux.action.start('Creating an optimized build')
+        const stats = await runWebpack({
+          clean: true,
+          projectDir: directory,
+          customWebpack: flags.webpack,
+          buildEntries: {
+            [upath.parse(script).name]: script,
+          },
+          outputDir: upath.resolve(directory, 'dist'),
+          isDev: false,
+        })
+        ux.action.stop()
+        buildAssets = printFileSizesAfterBuild(stats)
+      } catch (error: any) {
+        ux.action.stop(chalk.red('Failed to compile.\n'))
+        return this.error(error)
+      }
+
+      if (buildAssets.length && buildAssets[0].size > MAX_BUILD_SIZE) {
+        this.error(`The built file exceeds the size limit of ${filesize(MAX_BUILD_SIZE, { base: 2, standard: 'jedec' })}.`)
+      }
+    }
+
+    this.log('Start updating...')
     const pair = await this.getDecodedPair({
       suri: flags.suri,
       accountFilePath: flags.accountFilePath,
@@ -147,7 +191,6 @@ export default class Update extends PhatCommandBase {
     )
     ux.action.stop()
     this.log(`The Phat Function for workflow ${flags.workflowId} has been updated.`)
-
-    process.exit(0)
+    this.exit(0)
   }
 }

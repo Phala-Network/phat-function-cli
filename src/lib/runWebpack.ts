@@ -1,9 +1,12 @@
+import { statSync } from 'node:fs'
 import path from 'node:path'
 import upath from 'upath'
 import webpack, { Configuration, Stats } from 'webpack'
 import TerserPlugin from 'terser-webpack-plugin'
 import VirtualModulesPlugin from 'webpack-virtual-modules'
 import { merge, mergeWithCustomize, customizeArray } from 'webpack-merge'
+import { filesize } from 'filesize'
+import chalk from 'chalk'
 
 import { resolveToAbsolutePath } from '../lib/utils'
 import { formatWebpackMessages } from '../lib/formatWebpackMessages'
@@ -133,5 +136,55 @@ export async function runWebpack({
       return resolve(stats)
     })
   })
+}
+
+export function printFileSizesAfterBuild(
+  stats: Stats,
+  maxSize: number = MAX_BUILD_SIZE,
+) {
+  const json = stats.toJson({ all: false, warnings: true, assets: true, outputPath: true })
+  const messages = formatWebpackMessages(json)
+  if (messages.warnings && messages.warnings.length) {
+    console.log(chalk.yellow('Compiled with warnings.\n'))
+    console.log(messages.warnings.join('\n\n'))
+  } else {
+    console.log(chalk.green('Compiled successfully.\n'))
+  }
+  const assets = (json.assets ?? []).map(asset => {
+    const { size } = statSync(upath.join(json.outputPath ?? '', asset.name))
+    return {
+      folder: upath.join(
+        upath.basename(json.outputPath ?? ''),
+        upath.dirname(asset.name),
+      ),
+      name: upath.basename(asset.name),
+      size: size,
+      sizeLabel: filesize(size, { base: 2, standard: 'jedec' }),
+    }
+  })
+  assets.sort((a: any, b: any) => b.size - a.size)
+  assets.forEach(asset => {
+    const sizeLabel = asset.sizeLabel
+    const exceeded = maxSize && asset.size > maxSize
+    if (exceeded) {
+      console.log([
+        '  ',
+        chalk.yellow(`${sizeLabel}`),
+        '  ',
+        chalk.dim(asset.folder + path.sep),
+        chalk.cyan(asset.name),
+        '  ',
+        chalk.yellow(`(Exceeded the limit size of ${filesize(maxSize, { base: 2, standard: 'jedec' })})`),
+      ].join(''))
+    } else {
+      console.log([
+        '  ',
+        sizeLabel,
+        '  ',
+        chalk.dim(asset.folder + path.sep) + chalk.cyan(asset.name),
+      ].join(''))
+    }
+  })
+  return assets
 }
 

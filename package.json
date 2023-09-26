@@ -21,7 +21,6 @@
     "@phala/sdk": "^0.5.2",
     "@types/node-fetch": "2",
     "chalk": "4",
-    "dotenv": "^16.3.1",
     "ethers": "^6.7.1",
     "filesize": "^10.0.12",
     "inquirer": "8",

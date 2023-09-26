@@ -1,63 +1,10 @@
-import { lstatSync, readFileSync, statSync } from 'node:fs'
-import path from 'node:path'
+import { lstatSync, readFileSync } from 'node:fs'
 import upath from 'upath'
 import { Args, Command, Flags, ux } from '@oclif/core'
-import { Stats } from 'webpack'
-import { filesize } from 'filesize'
 import chalk from 'chalk'
 
 import { resolveToAbsolutePath } from '../lib/utils'
-import { formatWebpackMessages } from '../lib/formatWebpackMessages'
-import { MAX_BUILD_SIZE, runWebpack } from '../lib/runWebpack'
-
-function printFileSizesAfterBuild(
-  stats: Stats,
-  maxSize: number,
-) {
-  const json = stats.toJson({ all: false, warnings: true, assets: true, outputPath: true })
-  const messages = formatWebpackMessages(json)
-  if (messages.warnings && messages.warnings.length) {
-    console.log(chalk.yellow('Compiled with warnings.\n'))
-    console.log(messages.warnings.join('\n\n'))
-  } else {
-    console.log(chalk.green('Compiled successfully.\n'))
-  }
-  const assets = (json.assets ?? []).map(asset => {
-    const { size } = statSync(upath.join(json.outputPath ?? '', asset.name))
-    return {
-      folder: upath.join(
-        upath.basename(json.outputPath ?? ''),
-        upath.dirname(asset.name),
-      ),
-      name: upath.basename(asset.name),
-      size: size,
-      sizeLabel: filesize(size, { base: 2, standard: 'jedec' }),
-    }
-  })
-  assets.sort((a: any, b: any) => b.size - a.size)
-  assets.forEach(asset => {
-    const sizeLabel = asset.sizeLabel
-    const exceeded = maxSize && asset.size > maxSize
-    if (exceeded) {
-      console.log([
-        '  ',
-        chalk.yellow(`${sizeLabel}`),
-        '  ',
-        chalk.dim(asset.folder + path.sep),
-        chalk.cyan(asset.name),
-        '  ',
-        chalk.yellow(`(Exceeded the limit size of ${filesize(maxSize, { base: 2, standard: 'jedec' })})`),
-      ].join(''))
-    } else {
-      console.log([
-        '  ',
-        sizeLabel,
-        '  ',
-        chalk.dim(asset.folder + path.sep) + chalk.cyan(asset.name),
-      ].join(''))
-    }
-  })
-}
+import { runWebpack, printFileSizesAfterBuild } from '../lib/runWebpack'
 
 export default class Build extends Command {
   static description = 'Build a production bundle of the function script'
@@ -131,7 +78,7 @@ export default class Build extends Command {
         isDev,
       })
       ux.action.stop()
-      printFileSizesAfterBuild(stats, MAX_BUILD_SIZE)
+      printFileSizesAfterBuild(stats)
     } catch (error: any) {
       ux.action.stop(chalk.red('Failed to compile.\n'))
       return this.error(error)

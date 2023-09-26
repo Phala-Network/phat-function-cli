@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import upath from 'upath'
-import { Flags, ux } from '@oclif/core'
+import { Args, Flags, ux } from '@oclif/core'
 import type { Result, u16 } from '@polkadot/types'
 import { type AccountId } from '@polkadot/types/interfaces'
 import { Abi } from '@polkadot/api-contract'
@@ -14,11 +14,22 @@ import {
   signAndSend,
   PinkBlueprintSubmittableResult,
 } from '@phala/sdk'
+import chalk from 'chalk'
+import { filesize } from 'filesize'
 
 import PhatCommandBase from '../lib/PhatCommandBase'
+import { MAX_BUILD_SIZE, runWebpack, printFileSizesAfterBuild } from '../lib/runWebpack'
 
 export default class Upload extends PhatCommandBase {
   static description = 'Upload JS to Phat Function'
+
+  static args = {
+    script: Args.string({
+      description: 'The function script file',
+      require: true,
+      default: 'src/index',
+    }),
+  }
 
   static flags = {
     accountFilePath: Flags.string({
@@ -52,11 +63,43 @@ export default class Upload extends PhatCommandBase {
       options: ['production', 'prod', 'development', 'dev'],
       default: 'development',
     })(),
+    build: Flags.boolean({
+      char: 'b',
+      default: true,
+    }),
   }
 
   public async run(): Promise<void> {
-    const { flags } = await this.parse(Upload)
+    const { flags, args: { script } } = await this.parse(Upload)
     const isDev = flags.mode === 'development' || flags.mode === 'dev'
+    if (flags.build) {
+      const directory = process.cwd()
+      let buildAssets = []
+      try {
+        ux.action.start('Creating an optimized build')
+        const stats = await runWebpack({
+          clean: true,
+          projectDir: directory,
+          customWebpack: flags.webpack,
+          buildEntries: {
+            [upath.parse(script).name]: script,
+          },
+          outputDir: upath.resolve(directory, 'dist'),
+          isDev: false,
+        })
+        ux.action.stop()
+        buildAssets = printFileSizesAfterBuild(stats)
+      } catch (error: any) {
+        ux.action.stop(chalk.red('Failed to compile.\n'))
+        return this.error(error)
+      }
+
+      if (buildAssets.length && buildAssets[0].size > MAX_BUILD_SIZE) {
+        this.error(`The built file exceeds the size limit of ${filesize(MAX_BUILD_SIZE, { base: 2, standard: 'jedec' })}.`)
+      }
+    }
+
+    this.log('Start uploading...')
     const pair = await this.getDecodedPair({
       suri: flags.suri,
       accountFilePath: flags.accountFilePath,
