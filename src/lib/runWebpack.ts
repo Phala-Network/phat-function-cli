@@ -160,6 +160,7 @@ export function printFileSizesAfterBuild(
       name: upath.basename(asset.name),
       size: size,
       sizeLabel: filesize(size, { base: 2, standard: 'jedec' }),
+      outputPath: json.outputPath ?? '',
     }
   })
   assets.sort((a: any, b: any) => b.size - a.size)

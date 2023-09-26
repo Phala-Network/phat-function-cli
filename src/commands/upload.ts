@@ -18,7 +18,11 @@ import chalk from 'chalk'
 import { filesize } from 'filesize'
 
 import PhatCommandBase from '../lib/PhatCommandBase'
-import { MAX_BUILD_SIZE, runWebpack, printFileSizesAfterBuild } from '../lib/runWebpack'
+import {
+  MAX_BUILD_SIZE,
+  runWebpack,
+  printFileSizesAfterBuild,
+} from '../lib/runWebpack'
 
 export default class Upload extends PhatCommandBase {
   static description = 'Upload JS to Phat Function'
@@ -70,11 +74,14 @@ export default class Upload extends PhatCommandBase {
   }
 
   public async run(): Promise<void> {
-    const { flags, args: { script } } = await this.parse(Upload)
+    const {
+      flags,
+      args: { script },
+    } = await this.parse(Upload)
     const isDev = flags.mode === 'development' || flags.mode === 'dev'
+    let buildAssets
     if (flags.build) {
       const directory = process.cwd()
-      let buildAssets = []
       try {
         ux.action.start('Creating an optimized build')
         const stats = await runWebpack({
@@ -94,8 +101,17 @@ export default class Upload extends PhatCommandBase {
         return this.error(error)
       }
 
-      if (buildAssets.length && buildAssets[0].size > MAX_BUILD_SIZE) {
-        this.error(`The built file exceeds the size limit of ${filesize(MAX_BUILD_SIZE, { base: 2, standard: 'jedec' })}.`)
+      if (
+        buildAssets &&
+        buildAssets.length &&
+        buildAssets[0].size > MAX_BUILD_SIZE
+      ) {
+        this.error(
+          `The file size exceeds the limit of ${filesize(MAX_BUILD_SIZE, {
+            base: 2,
+            standard: 'jedec',
+          })}.`
+        )
       }
     }
 
@@ -159,12 +175,31 @@ export default class Upload extends PhatCommandBase {
     ux.action.start('Instantiating the ActionOffchainRollup contract')
     const brickProfileAbi = await this.loadAbiByContractId(
       registry,
-      brickProfileContractId,
+      brickProfileContractId
     )
-    const brickProfileContractKey = await registry.getContractKeyOrFail(brickProfileContractId)
-    const brickProfile = new PinkContractPromise(apiPromise, registry, brickProfileAbi, brickProfileContractId, brickProfileContractKey)
-    const rollupAbi = new Abi((await this.loadAbiByCodeHash(isDev ? '0xe0a086ccadbac348b625e859b46175224b226d29fa842f051e49c6fcc85dee62' : '0x96ca5480eb52b8087b1e64cae52c75e6db037e1920320653584ef920db5d29d5')))
-    const blueprint = new PinkBlueprintPromise(apiPromise, registry, rollupAbi, rollupAbi.info.source.wasmHash.toHex())
+    const brickProfileContractKey = await registry.getContractKeyOrFail(
+      brickProfileContractId
+    )
+    const brickProfile = new PinkContractPromise(
+      apiPromise,
+      registry,
+      brickProfileAbi,
+      brickProfileContractId,
+      brickProfileContractKey
+    )
+    const rollupAbi = new Abi(
+      await this.loadAbiByCodeHash(
+        isDev
+          ? '0xe0a086ccadbac348b625e859b46175224b226d29fa842f051e49c6fcc85dee62'
+          : '0x96ca5480eb52b8087b1e64cae52c75e6db037e1920320653584ef920db5d29d5'
+      )
+    )
+    const blueprint = new PinkBlueprintPromise(
+      apiPromise,
+      registry,
+      rollupAbi,
+      rollupAbi.info.source.wasmHash.toHex()
+    )
 
     const result = await signAndSend<PinkBlueprintSubmittableResult>(
       blueprint.tx.withConfiguration(
@@ -172,25 +207,36 @@ export default class Upload extends PhatCommandBase {
         flags.rpc,
         flags.consumerAddress,
         fs.readFileSync(
-          upath.join(process.cwd(), 'dist', 'index.js'),
+          buildAssets && buildAssets.length
+            ? upath.join(buildAssets[0].outputPath, buildAssets[0].name)
+            : upath.join(process.cwd(), 'dist', 'index.js'),
           'utf8'
         ),
         flags.coreSettings || '',
-        brickProfileContractId,
+        brickProfileContractId
       ),
       pair
     )
     await result.waitFinalized()
     const contractPromise = result.contract
     ux.action.stop()
-    this.log('The ActionOffchainRollup contract has been instantiated:', contractPromise.address.toHex())
+    this.log(
+      'The ActionOffchainRollup contract has been instantiated:',
+      contractPromise.address.toHex()
+    )
 
     // Step 4: Setting up the actions.
     ux.action.start('Setting up the actions')
-    const { output: attestorQuery } = await contractPromise.query.getAttestAddress(cert.address, { cert })
+    const { output: attestorQuery } =
+      await contractPromise.query.getAttestAddress(cert.address, { cert })
     const attestor = attestorQuery.asOk.toHex()
-    const selectorUint8Array = rollupAbi.messages.find(i => i.identifier === 'answer_request')?.selector.toU8a()
-    const selector = Buffer.from(selectorUint8Array!).readUIntBE(0, selectorUint8Array!.length)
+    const selectorUint8Array = rollupAbi.messages
+      .find((i) => i.identifier === 'answer_request')
+      ?.selector.toU8a()
+    const selector = Buffer.from(selectorUint8Array!).readUIntBE(
+      0,
+      selectorUint8Array!.length
+    )
     const actions = [
       {
         cmd: 'call',
@@ -205,12 +251,19 @@ export default class Upload extends PhatCommandBase {
         cmd: 'log',
       },
     ]
-    const { output: numberQuery } = await brickProfile.query.workflowCount<u16>(pair.address, { cert })
+    const { output: numberQuery } = await brickProfile.query.workflowCount<u16>(
+      pair.address,
+      { cert }
+    )
     const num = numberQuery.asOk.toNumber()
     const { blocknum: initBlockNum } = await registry.phactory.getInfo({})
 
     await signAndSend(
-      brickProfile.tx.addWorkflow({ gasLimit: 1000000000000 }, `My Phat Function ${numberQuery.asOk.toNumber()}`, JSON.stringify(actions)),
+      brickProfile.tx.addWorkflow(
+        { gasLimit: 1000000000000 },
+        `My Phat Function ${numberQuery.asOk.toNumber()}`,
+        JSON.stringify(actions)
+      ),
       pair
     )
 
@@ -223,7 +276,8 @@ export default class Upload extends PhatCommandBase {
           `Wait for transaction finalized in PRuntime but timeout after ${confirmations} blocks.`
         )
       }
-      const { output: numberQuery } = await brickProfile.query.workflowCount<u16>(pair.address, { cert })
+      const { output: numberQuery } =
+        await brickProfile.query.workflowCount<u16>(pair.address, { cert })
       if (numberQuery.asOk.toNumber() > num) {
         break
       }
@@ -231,11 +285,17 @@ export default class Upload extends PhatCommandBase {
     }
     const externalAccountId = 0
     await signAndSend(
-      brickProfile.tx.authorizeWorkflow({ gasLimit: 1000000000000 }, num, externalAccountId),
+      brickProfile.tx.authorizeWorkflow(
+        { gasLimit: 1000000000000 },
+        num,
+        externalAccountId
+      ),
       pair
     )
     ux.action.stop()
-    this.log(`🎉 Your workflow has been added, you can check it out here: https://bricks-poc5.phala.network/workflows/${brickProfileContractId}/${num}`)
+    this.log(
+      `🎉 Your workflow has been added, you can check it out here: https://bricks-poc5.phala.network/workflows/${brickProfileContractId}/${num}`
+    )
     this.log('Your Attestor address:', attestor)
     this.log('Your WORKFLOW_ID:', numberQuery.asOk.toNumber())
     process.exit(0)

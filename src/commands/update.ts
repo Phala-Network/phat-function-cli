@@ -16,7 +16,11 @@ import chalk from 'chalk'
 import { filesize } from 'filesize'
 
 import PhatCommandBase from '../lib/PhatCommandBase'
-import { MAX_BUILD_SIZE, runWebpack, printFileSizesAfterBuild } from '../lib/runWebpack'
+import {
+  MAX_BUILD_SIZE,
+  runWebpack,
+  printFileSizesAfterBuild,
+} from '../lib/runWebpack'
 
 interface WorkflowCodec extends Struct {
   id: u16
@@ -67,12 +71,15 @@ export default class Update extends PhatCommandBase {
   }
 
   public async run(): Promise<void> {
-    const { flags, args: { script } } = await this.parse(Update)
+    const {
+      flags,
+      args: { script },
+    } = await this.parse(Update)
     const isDev = flags.mode === 'development' || flags.mode === 'dev'
 
+    let buildAssets
     if (flags.build) {
       const directory = process.cwd()
-      let buildAssets = []
       try {
         ux.action.start('Creating an optimized build')
         const stats = await runWebpack({
@@ -92,8 +99,17 @@ export default class Update extends PhatCommandBase {
         return this.error(error)
       }
 
-      if (buildAssets.length && buildAssets[0].size > MAX_BUILD_SIZE) {
-        this.error(`The built file exceeds the size limit of ${filesize(MAX_BUILD_SIZE, { base: 2, standard: 'jedec' })}.`)
+      if (
+        buildAssets &&
+        buildAssets.length &&
+        buildAssets[0].size > MAX_BUILD_SIZE
+      ) {
+        this.error(
+          `The file size exceeds the limit of ${filesize(MAX_BUILD_SIZE, {
+            base: 2,
+            standard: 'jedec',
+          })}.`
+        )
       }
     }
 
@@ -143,7 +159,9 @@ export default class Update extends PhatCommandBase {
       brickProfileFactoryContractKey
     )
     const { output: brickProfileAddressQuery } =
-      await brickProfileFactory.query.getUserProfileAddress<Result<AccountId, any>>(pair.address, { cert })
+      await brickProfileFactory.query.getUserProfileAddress<
+        Result<AccountId, any>
+      >(pair.address, { cert })
 
     if (!brickProfileAddressQuery.isOk || !brickProfileAddressQuery.asOk.isOk) {
       this.error('You need create Brick Profile before continue.')
@@ -157,19 +175,37 @@ export default class Update extends PhatCommandBase {
     ux.action.start('Checking your workflow settings')
     const brickProfileAbi = await this.loadAbiByContractId(
       registry,
-      brickProfileContractId,
+      brickProfileContractId
     )
-    const brickProfileContractKey = await registry.getContractKeyOrFail(brickProfileContractId)
-    const brickProfile = new PinkContractPromise(apiPromise, registry, brickProfileAbi, brickProfileContractId, brickProfileContractKey)
-    const { output: workflowQuery } = await brickProfile.query.getWorkflow<Result<WorkflowCodec, any>>(pair.address, { cert }, flags.workflowId)
+    const brickProfileContractKey = await registry.getContractKeyOrFail(
+      brickProfileContractId
+    )
+    const brickProfile = new PinkContractPromise(
+      apiPromise,
+      registry,
+      brickProfileAbi,
+      brickProfileContractId,
+      brickProfileContractKey
+    )
+    const { output: workflowQuery } = await brickProfile.query.getWorkflow<
+      Result<WorkflowCodec, any>
+    >(pair.address, { cert }, flags.workflowId)
     if (!workflowQuery.isOk || !workflowQuery.asOk.isOk) {
       this.error('Workflow not found.')
     }
     const actions = JSON.parse(workflowQuery.asOk.asOk.commandline.toString())
-    const rollupAbi = new Abi((await this.loadAbiByCodeHash(isDev ? '0xe0a086ccadbac348b625e859b46175224b226d29fa842f051e49c6fcc85dee62' : '0x96ca5480eb52b8087b1e64cae52c75e6db037e1920320653584ef920db5d29d5')))
+    const rollupAbi = new Abi(
+      await this.loadAbiByCodeHash(
+        isDev
+          ? '0xe0a086ccadbac348b625e859b46175224b226d29fa842f051e49c6fcc85dee62'
+          : '0x96ca5480eb52b8087b1e64cae52c75e6db037e1920320653584ef920db5d29d5'
+      )
+    )
     if (actions[0].config.codeHash !== rollupAbi.info.source.wasmHash.toHex()) {
       this.error(
-        `The codeHash of the workflow is not matched with the ActionOffchainRollup contract.\nExpected: ${actions[0].config.codeHash}\nActual: ${rollupAbi.info.source.wasmHash.toHex()}\n`
+        `The codeHash of the workflow is not matched with the ActionOffchainRollup contract.\nExpected: ${
+          actions[0].config.codeHash
+        }\nActual: ${rollupAbi.info.source.wasmHash.toHex()}\n`
       )
     }
     ux.action.stop()
@@ -177,20 +213,32 @@ export default class Update extends PhatCommandBase {
     // Step 4: Update the JS.
     ux.action.start('Updating')
     const actionOffchainRollupContractId = actions[0].config.callee
-    const rollupContractKey = await registry.getContractKeyOrFail(actionOffchainRollupContractId)
-    const rollupContract = new PinkContractPromise(apiPromise, registry, rollupAbi, actionOffchainRollupContractId, rollupContractKey)
+    const rollupContractKey = await registry.getContractKeyOrFail(
+      actionOffchainRollupContractId
+    )
+    const rollupContract = new PinkContractPromise(
+      apiPromise,
+      registry,
+      rollupAbi,
+      actionOffchainRollupContractId,
+      rollupContractKey
+    )
     await signAndSend(
       rollupContract.tx.configCoreScript(
         { gasLimit: 1000000000000 },
         fs.readFileSync(
-          upath.join(process.cwd(), 'dist', 'index.js'),
+          buildAssets && buildAssets.length
+            ? upath.join(buildAssets[0].outputPath, buildAssets[0].name)
+            : upath.join(process.cwd(), 'dist', 'index.js'),
           'utf8'
-        ),
+        )
       ),
       pair
     )
     ux.action.stop()
-    this.log(`The Phat Function for workflow ${flags.workflowId} has been updated.`)
+    this.log(
+      `The Phat Function for workflow ${flags.workflowId} has been updated.`
+    )
     this.exit(0)
   }
 }
