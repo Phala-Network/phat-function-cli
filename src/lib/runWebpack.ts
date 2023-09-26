@@ -11,7 +11,7 @@ import chalk from 'chalk'
 import { resolveToAbsolutePath } from '../lib/utils'
 import { formatWebpackMessages } from '../lib/formatWebpackMessages'
 
-export const MAX_BUILD_SIZE = 1024 * 1024
+export const MAX_BUILD_SIZE = 1024 * 400
 
 const BUILD_CODE_TEMPLATE = `
   // @ts-ignore
