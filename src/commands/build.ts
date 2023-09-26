@@ -99,7 +99,7 @@ export default class Build extends Command {
 
     const outputDir = upath.resolve(directory, flags.output ?? 'dist')
     let buildEntries: Record<string, string> = {
-      index: script,
+      [upath.parse(script).name]: script,
     }
     const pjson = JSON.parse(readFileSync(upath.join(directory, 'package.json')).toString())
     if (pjson.exports && typeof pjson.exports !== 'string') {

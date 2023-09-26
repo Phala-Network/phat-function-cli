@@ -49,6 +49,7 @@ const getBaseConfig = (
             moduleResolution: 'node',
             module: 'es6',
           },
+          onlyCompileBundledFiles: true,
         },
       },
     ],
