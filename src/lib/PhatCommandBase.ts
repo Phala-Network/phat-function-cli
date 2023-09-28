@@ -10,13 +10,11 @@ import { Keyring } from '@polkadot/keyring'
 import { type KeyringPair } from '@polkadot/keyring/types'
 
 export default abstract class PhatCommandBase extends Command {
-  async getDecodedPair({ suri, accountFilePath }: { suri?: string, accountFilePath?: string }): Promise<KeyringPair> {
+  async getDecodedPair({ suri, accountFilePath, accountPassword }: { suri?: string, accountFilePath?: string, accountPassword?: string }): Promise<KeyringPair> {
     const keyring = new Keyring({ type: 'sr25519' })
     let pair: KeyringPair
 
-    if (suri) {
-      pair = keyring.addFromUri(suri)
-    } else if (accountFilePath) {
+    if (accountFilePath) {
       if (!fs.existsSync(accountFilePath)) {
         this.error(
           `Keypair account json file does not exist: ${accountFilePath}`
@@ -34,19 +32,60 @@ export default abstract class PhatCommandBase extends Command {
         'utf8'
       )
       pair = keyring.createFromJson(JSON.parse(exported))
+    } else if (suri) {
+      pair = keyring.addFromUri(suri)
     } else {
-      this.error('Please specify suri or accountFilePath.')
+      pair = keyring.addFromUri((await this.promptForSuri()))
     }
 
     if (pair.isLocked) {
-      pair = await this.requestPairDecoding(pair)
+      pair = await this.requestPairDecoding(pair, {
+        password: accountPassword,
+      })
     }
 
-    return (await this.requestPairDecoding(pair))
+    return pair
+  }
+
+  async requestPairDecoding(
+    pair: KeyringPair,
+    options: {
+      password?: string,
+      message?: string
+    }
+  ): Promise<KeyringPair> {
+    if (!pair.isLocked) {
+      return pair
+    }
+
+    // Try decoding using empty string
+    try {
+      pair.decodePkcs8(options.password || '')
+      return pair
+    } catch (e) {
+      // Continue
+    }
+
+    let isPassValid = false
+    while (!isPassValid) {
+      try {
+        const password = await this.promptForPassword(
+          options.message ||
+            `Please Enter ${
+              pair.meta.name ? pair.meta.name : pair.address
+            } account password`
+        )
+        pair.decodePkcs8(password)
+        isPassValid = true
+      } catch (e) {
+        this.warn('Invalid password, try again.')
+      }
+    }
+    return pair
   }
 
   async promptForPassword(
-    message = `Your account's password`
+    message = `Please enter your account password`
   ): Promise<string> {
     const { password } = await inquirer.prompt([
       {
@@ -58,38 +97,17 @@ export default abstract class PhatCommandBase extends Command {
     return password
   }
 
-  async requestPairDecoding(
-    pair: KeyringPair,
-    message?: string
-  ): Promise<KeyringPair> {
-    if (!pair.isLocked) {
-      return pair
-    }
-
-    // Try decoding using empty string
-    try {
-      pair.decodePkcs8('')
-      return pair
-    } catch (e) {
-      // Continue
-    }
-
-    let isPassValid = false
-    while (!isPassValid) {
-      try {
-        const password = await this.promptForPassword(
-          message ||
-            `Enter ${
-              pair.meta.name ? pair.meta.name : pair.address
-            } account password`
-        )
-        pair.decodePkcs8(password)
-        isPassValid = true
-      } catch (e) {
-        this.warn('Invalid password, try again.')
-      }
-    }
-    return pair
+  async promptForSuri(
+    message = `Please enter your substrate uri`
+  ): Promise<string> {
+    const { suri } = await inquirer.prompt([
+      {
+        name: 'suri',
+        type: 'input',
+        message,
+      },
+    ])
+    return suri
   }
 
   async loadAbiByCodeHash(codeHash: string) {

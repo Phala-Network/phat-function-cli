@@ -16,6 +16,8 @@ import {
 } from '@phala/sdk'
 import chalk from 'chalk'
 import { filesize } from 'filesize'
+import inquirer from 'inquirer'
+import * as dotenv from 'dotenv'
 
 import PhatCommandBase from '../lib/PhatCommandBase'
 import {
@@ -36,10 +38,21 @@ export default class Upload extends PhatCommandBase {
   }
 
   static flags = {
+    envFilePath: Flags.string({
+      char: 'e',
+      description: 'Path to env file',
+      required: false,
+    }),
     accountFilePath: Flags.string({
       char: 'a',
       required: false,
-      description: 'Path to account account JSON file',
+      description: 'Path to polkadot account JSON file',
+      exclusive: ['suri'],
+    }),
+    accountPassword: Flags.string({
+      char: 'p',
+      required: false,
+      description: 'Polkadot account password',
       exclusive: ['suri'],
     }),
     suri: Flags.string({
@@ -53,11 +66,11 @@ export default class Upload extends PhatCommandBase {
     }),
     rpc: Flags.string({
       description: 'Client RPC URL',
-      required: true,
+      required: false,
     }),
     consumerAddress: Flags.string({
       description: 'Consumer contract address',
-      required: true,
+      required: false,
     }),
     coreSettings: Flags.string({
       description: 'Core settings',
@@ -78,7 +91,25 @@ export default class Upload extends PhatCommandBase {
       flags,
       args: { script },
     } = await this.parse(Upload)
+
+    if (flags.envFilePath) {
+      if (!fs.existsSync(flags.envFilePath)) {
+        this.error(`Env file does not exist: ${flags.envFilePath}`)
+      }
+      dotenv.config({ path: upath.resolve(flags.envFilePath) })
+    } else {
+      dotenv.config()
+    }
+
     const isDev = flags.mode === 'development' || flags.mode === 'dev'
+    const rpc = flags.rpc || (await this.promptRpc())
+    const consumerAddress = flags.consumerAddress || (await this.promptConsumerAddress())
+    const pair = await this.getDecodedPair({
+      suri: flags.suri || process.env.POLKADOT_WALLET_SURI,
+      accountFilePath: flags.accountFilePath || process.env.POLKADOT_WALLET_ACCOUNT_FILE,
+      accountPassword: flags.accountPassword || process.env.POLKADOT_WALLET_ACCOUNT_PASSWORD,
+    })
+
     let buildAssets
     if (flags.build) {
       const directory = process.cwd()
@@ -114,12 +145,6 @@ export default class Upload extends PhatCommandBase {
         )
       }
     }
-
-    this.log('Start uploading...')
-    const pair = await this.getDecodedPair({
-      suri: flags.suri,
-      accountFilePath: flags.accountFilePath,
-    })
 
     // Step 1: Connect to the endpoint.
     let endpoint
@@ -204,8 +229,8 @@ export default class Upload extends PhatCommandBase {
     const result = await signAndSend<PinkBlueprintSubmittableResult>(
       blueprint.tx.withConfiguration(
         { gasLimit: 1000000000000 },
-        flags.rpc,
-        flags.consumerAddress,
+        rpc,
+        consumerAddress,
         fs.readFileSync(
           buildAssets && buildAssets.length
             ? upath.join(buildAssets[0].outputPath, buildAssets[0].name)
@@ -299,5 +324,31 @@ export default class Upload extends PhatCommandBase {
     this.log('Your Attestor address:', attestor)
     this.log('Your WORKFLOW_ID:', numberQuery.asOk.toNumber())
     process.exit(0)
+  }
+
+  async promptRpc(
+    message = 'Please enter your client RPC URL'
+  ): Promise<string> {
+    const { rpc } = await inquirer.prompt([
+      {
+        name: 'rpc',
+        type: 'input',
+        message,
+      },
+    ])
+    return rpc
+  }
+
+  async promptConsumerAddress(
+    message = 'Please enter your consumer address'
+  ): Promise<string> {
+    const { consumerAddress } = await inquirer.prompt([
+      {
+        name: 'consumerAddress',
+        type: 'input',
+        message,
+      },
+    ])
+    return consumerAddress
   }
 }

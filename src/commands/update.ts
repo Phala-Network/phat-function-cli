@@ -14,6 +14,8 @@ import {
 } from '@phala/sdk'
 import chalk from 'chalk'
 import { filesize } from 'filesize'
+import inquirer from 'inquirer'
+import * as dotenv from 'dotenv'
 
 import PhatCommandBase from '../lib/PhatCommandBase'
 import {
@@ -41,10 +43,21 @@ export default class Update extends PhatCommandBase {
   }
 
   static flags = {
+    envFilePath: Flags.string({
+      char: 'e',
+      description: 'Path to env file',
+      required: false,
+    }),
     accountFilePath: Flags.string({
       char: 'a',
       required: false,
       description: 'Path to account account JSON file',
+      exclusive: ['suri'],
+    }),
+    accountPassword: Flags.string({
+      char: 'p',
+      required: false,
+      description: 'Polkadot account password',
       exclusive: ['suri'],
     }),
     suri: Flags.string({
@@ -58,7 +71,7 @@ export default class Update extends PhatCommandBase {
     }),
     workflowId: Flags.integer({
       description: 'Workflow ID',
-      required: true,
+      required: false,
     }),
     mode: Flags.custom({
       options: ['production', 'prod', 'development', 'dev'],
@@ -75,7 +88,23 @@ export default class Update extends PhatCommandBase {
       flags,
       args: { script },
     } = await this.parse(Update)
+
+    if (flags.envFilePath) {
+      if (!fs.existsSync(flags.envFilePath)) {
+        this.error(`Env file does not exist: ${flags.envFilePath}`)
+      }
+      dotenv.config({ path: upath.resolve(flags.envFilePath) })
+    } else {
+      dotenv.config()
+    }
+
     const isDev = flags.mode === 'development' || flags.mode === 'dev'
+    const workflowId = flags.workflowId || (await this.promptWorkflowId())
+    const pair = await this.getDecodedPair({
+      suri: flags.suri || process.env.POLKADOT_WALLET_SURI,
+      accountFilePath: flags.accountFilePath || process.env.POLKADOT_WALLET_ACCOUNT_FILE,
+      accountPassword: flags.accountPassword || process.env.POLKADOT_WALLET_ACCOUNT_PASSWORD,
+    })
 
     let buildAssets
     if (flags.build) {
@@ -112,12 +141,6 @@ export default class Update extends PhatCommandBase {
         )
       }
     }
-
-    this.log('Start updating...')
-    const pair = await this.getDecodedPair({
-      suri: flags.suri,
-      accountFilePath: flags.accountFilePath,
-    })
 
     // Step 1: Connect to the endpoint.
     let endpoint
@@ -189,7 +212,7 @@ export default class Update extends PhatCommandBase {
     )
     const { output: workflowQuery } = await brickProfile.query.getWorkflow<
       Result<WorkflowCodec, any>
-    >(pair.address, { cert }, flags.workflowId)
+    >(pair.address, { cert }, workflowId)
     if (!workflowQuery.isOk || !workflowQuery.asOk.isOk) {
       this.error('Workflow not found.')
     }
@@ -237,8 +260,21 @@ export default class Update extends PhatCommandBase {
     )
     ux.action.stop()
     this.log(
-      `The Phat Function for workflow ${flags.workflowId} has been updated.`
+      `The Phat Function for workflow ${workflowId} has been updated.`
     )
     this.exit(0)
+  }
+
+  async promptWorkflowId(
+    message = 'Please enter your workflow ID'
+  ): Promise<string> {
+    const { workflowId } = await inquirer.prompt([
+      {
+        name: 'workflowId',
+        type: 'input',
+        message,
+      },
+    ])
+    return workflowId
   }
 }
