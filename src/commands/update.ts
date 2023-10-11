@@ -102,7 +102,10 @@ export default class Update extends PhatCommandBase {
     }
 
     const isDev = flags.mode === 'development' || flags.mode === 'dev'
-    const workflowId = flags.workflowId || process.env.WORKFLOW_ID || (await this.promptWorkflowId())
+    let workflowId = flags.workflowId || process.env.WORKFLOW_ID
+    if (workflowId === null || workflowId === undefined) {
+      workflowId =  await this.promptWorkflowId()
+    }
     const pair = await this.getDecodedPair({
       suri: flags.suri || process.env.POLKADOT_WALLET_SURI,
       accountFilePath: flags.accountFilePath || process.env.POLKADOT_WALLET_ACCOUNT_FILE,
