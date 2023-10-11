@@ -151,7 +151,7 @@ export default class Update extends PhatCommandBase {
       endpoint = flags.endpoint
     } else {
       endpoint = isDev
-        ? 'wss://poc5.phala.network/ws'
+        ? 'wss://poc6.phala.network/ws'
         : 'wss://api.phala.network/ws'
     }
     ux.action.start(`Connecting to the endpoint: ${endpoint}`)
