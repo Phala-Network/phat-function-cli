@@ -6,11 +6,13 @@ import {
   OnChainRegistry,
   unsafeGetAbiFromGitHubRepoByCodeHash,
 } from '@phala/sdk'
+import { waitReady } from '@polkadot/wasm-crypto'
 import { Keyring } from '@polkadot/keyring'
 import { type KeyringPair } from '@polkadot/keyring/types'
 
 export default abstract class PhatCommandBase extends Command {
   async getDecodedPair({ suri, accountFilePath, accountPassword }: { suri?: string, accountFilePath?: string, accountPassword?: string }): Promise<KeyringPair> {
+    await waitReady()
     const keyring = new Keyring({ type: 'sr25519' })
     let pair: KeyringPair
 
