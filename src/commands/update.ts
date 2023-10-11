@@ -10,7 +10,6 @@ import {
   options,
   signCertificate,
   PinkContractPromise,
-  signAndSend,
 } from '@phala/sdk'
 import chalk from 'chalk'
 import { filesize } from 'filesize'
@@ -67,6 +66,10 @@ export default class Update extends PhatCommandBase {
     }),
     endpoint: Flags.string({
       description: 'Phala provider endpoint',
+      required: false,
+    }),
+    brickProfileFactory: Flags.string({
+      description: 'Brick profile factory contract address',
       required: false,
     }),
     workflowId: Flags.integer({
@@ -152,7 +155,6 @@ export default class Update extends PhatCommandBase {
         : 'wss://api.phala.network/ws'
     }
     ux.action.start(`Connecting to the endpoint: ${endpoint}`)
-    const cert = await signCertificate({ pair })
     const apiPromise = await ApiPromise.create(
       options({
         provider: new WsProvider(endpoint),
@@ -160,13 +162,17 @@ export default class Update extends PhatCommandBase {
       })
     )
     const registry = await OnChainRegistry.create(apiPromise)
+    const cert = await signCertificate({ pair })
     ux.action.stop()
 
     // Step 2: Query the brick profile contract id.
     ux.action.start('Querying your Brick Profile contract ID')
-    const brickProfileFactoryContractId = isDev
-      ? '0x489bb4fa807bbe0f877ed46be8646867a8d16ec58add141977c4bd19b0237091'
-      : '0xb59bcc4ea352f3d878874d8f496fb093bdf362fa59d6e577c075f41cd7c84924'
+    let brickProfileFactoryContractId = flags.brickProfileFactory
+    if (!brickProfileFactoryContractId) {
+      brickProfileFactoryContractId = isDev
+        ? '0x489bb4fa807bbe0f877ed46be8646867a8d16ec58add141977c4bd19b0237091'
+        : '0xb59bcc4ea352f3d878874d8f496fb093bdf362fa59d6e577c075f41cd7c84924'
+    }
     const brickProfileFactoryAbi = await this.loadAbiByContractId(
       registry,
       brickProfileFactoryContractId
@@ -218,11 +224,7 @@ export default class Update extends PhatCommandBase {
     }
     const actions = JSON.parse(workflowQuery.asOk.asOk.commandline.toString())
     const rollupAbi = new Abi(
-      await this.loadAbiByCodeHash(
-        isDev
-          ? '0xe0a086ccadbac348b625e859b46175224b226d29fa842f051e49c6fcc85dee62'
-          : '0x96ca5480eb52b8087b1e64cae52c75e6db037e1920320653584ef920db5d29d5'
-      )
+      await this.loadAbiByCodeHash('0x96ca5480eb52b8087b1e64cae52c75e6db037e1920320653584ef920db5d29d5')
     )
     if (actions[0].config.codeHash !== rollupAbi.info.source.wasmHash.toHex()) {
       this.error(
@@ -246,17 +248,14 @@ export default class Update extends PhatCommandBase {
       actionOffchainRollupContractId,
       rollupContractKey
     )
-    await signAndSend(
-      rollupContract.tx.configCoreScript(
-        { gasLimit: 1000000000000 },
-        fs.readFileSync(
-          buildAssets && buildAssets.length
-            ? upath.join(buildAssets[0].outputPath, buildAssets[0].name)
-            : upath.join(process.cwd(), 'dist', 'index.js'),
-          'utf8'
-        )
-      ),
-      pair
+    await rollupContract.send.configCoreScript(
+      { cert, address: pair.address, pair },
+      fs.readFileSync(
+        buildAssets && buildAssets.length
+          ? upath.join(buildAssets[0].outputPath, buildAssets[0].name)
+          : upath.join(process.cwd(), 'dist', 'index.js'),
+        'utf8'
+      )
     )
     ux.action.stop()
     this.log(

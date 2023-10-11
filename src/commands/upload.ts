@@ -11,8 +11,6 @@ import {
   signCertificate,
   PinkContractPromise,
   PinkBlueprintPromise,
-  signAndSend,
-  PinkBlueprintSubmittableResult,
 } from '@phala/sdk'
 import chalk from 'chalk'
 import { filesize } from 'filesize'
@@ -66,6 +64,10 @@ export default class Upload extends PhatCommandBase {
     }),
     rpc: Flags.string({
       description: 'Client RPC URL',
+      required: false,
+    }),
+    brickProfileFactory: Flags.string({
+      description: 'Brick profile factory contract address',
       required: false,
     }),
     consumerAddress: Flags.string({
@@ -156,7 +158,6 @@ export default class Upload extends PhatCommandBase {
         : 'wss://api.phala.network/ws'
     }
     ux.action.start(`Connecting to the endpoint: ${endpoint}`)
-    const cert = await signCertificate({ pair })
     const apiPromise = await ApiPromise.create(
       options({
         provider: new WsProvider(endpoint),
@@ -164,13 +165,17 @@ export default class Upload extends PhatCommandBase {
       })
     )
     const registry = await OnChainRegistry.create(apiPromise)
+    const cert = await signCertificate({ pair })
     ux.action.stop()
 
     // Step 2: Query the brick profile contract id.
     ux.action.start('Querying your Brick Profile contract ID')
-    const brickProfileFactoryContractId = isDev
-      ? '0x489bb4fa807bbe0f877ed46be8646867a8d16ec58add141977c4bd19b0237091'
-      : '0xb59bcc4ea352f3d878874d8f496fb093bdf362fa59d6e577c075f41cd7c84924'
+    let brickProfileFactoryContractId = flags.brickProfileFactory
+    if (!brickProfileFactoryContractId) {
+      brickProfileFactoryContractId = isDev
+        ? '0x489bb4fa807bbe0f877ed46be8646867a8d16ec58add141977c4bd19b0237091'
+        : '0xb59bcc4ea352f3d878874d8f496fb093bdf362fa59d6e577c075f41cd7c84924'
+    }
     const brickProfileFactoryAbi = await this.loadAbiByContractId(
       registry,
       brickProfileFactoryContractId
@@ -213,11 +218,7 @@ export default class Upload extends PhatCommandBase {
       brickProfileContractKey
     )
     const rollupAbi = new Abi(
-      await this.loadAbiByCodeHash(
-        isDev
-          ? '0xe0a086ccadbac348b625e859b46175224b226d29fa842f051e49c6fcc85dee62'
-          : '0x96ca5480eb52b8087b1e64cae52c75e6db037e1920320653584ef920db5d29d5'
-      )
+      await this.loadAbiByCodeHash('0x96ca5480eb52b8087b1e64cae52c75e6db037e1920320653584ef920db5d29d5')
     )
     const blueprint = new PinkBlueprintPromise(
       apiPromise,
@@ -226,21 +227,18 @@ export default class Upload extends PhatCommandBase {
       rollupAbi.info.source.wasmHash.toHex()
     )
 
-    const result = await signAndSend<PinkBlueprintSubmittableResult>(
-      blueprint.tx.withConfiguration(
-        { gasLimit: 1000000000000 },
-        rpc,
-        consumerAddress,
-        fs.readFileSync(
-          buildAssets && buildAssets.length
-            ? upath.join(buildAssets[0].outputPath, buildAssets[0].name)
-            : upath.join(process.cwd(), 'dist', 'index.js'),
-          'utf8'
-        ),
-        flags.coreSettings || '',
-        brickProfileContractId
+    const result = await blueprint.send.withConfiguration(
+      { cert, address: pair.address, pair },
+      rpc,
+      consumerAddress,
+      fs.readFileSync(
+        buildAssets && buildAssets.length
+          ? upath.join(buildAssets[0].outputPath, buildAssets[0].name)
+          : upath.join(process.cwd(), 'dist', 'index.js'),
+        'utf8'
       ),
-      pair
+      flags.coreSettings || '',
+      brickProfileContractId
     )
     await result.waitFinalized()
     const contractPromise = result.contract
@@ -281,42 +279,15 @@ export default class Upload extends PhatCommandBase {
       { cert }
     )
     const num = numberQuery.asOk.toNumber()
-    const { blocknum: initBlockNum } = await registry.phactory.getInfo({})
 
-    await signAndSend(
-      brickProfile.tx.addWorkflow(
-        { gasLimit: 1000000000000 },
-        `My Phat Function ${numberQuery.asOk.toNumber()}`,
-        JSON.stringify(actions)
-      ),
-      pair
-    )
-
-    // How many blocks wait for confirmations
-    const confirmations = 8
-    while (true) {
-      const { blocknum } = await registry.phactory.getInfo({})
-      if (blocknum > initBlockNum + confirmations) {
-        this.error(
-          `Wait for transaction finalized in PRuntime but timeout after ${confirmations} blocks.`
-        )
-      }
-      const { output: numberQuery } =
-        await brickProfile.query.workflowCount<u16>(pair.address, { cert })
-      if (numberQuery.asOk.toNumber() > num) {
-        break
-      }
-      await new Promise((resolve) => setTimeout(resolve, 5_000))
-    }
     const externalAccountId = 0
-    await signAndSend(
-      brickProfile.tx.authorizeWorkflow(
-        { gasLimit: 1000000000000 },
-        num,
-        externalAccountId
-      ),
-      pair
+    const result2 = await brickProfile.send.addWorkflowAndAuthorize(
+      { cert, address: pair.address, pair },
+      `My PhatContract Oracle ${numberQuery.asOk.toNumber()}`,
+      JSON.stringify(actions),
+      externalAccountId
     )
+    await result2.waitFinalized()
     ux.action.stop()
     this.log(
       `🎉 Your workflow has been added, you can check it out here: https://bricks-poc5.phala.network/workflows/${brickProfileContractId}/${num}`
