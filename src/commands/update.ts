@@ -31,7 +31,7 @@ interface WorkflowCodec extends Struct {
 }
 
 export default class Update extends PhatCommandBase {
-  static description = 'Upload JS to Phat Function'
+  static description = 'Upload JS to Phat Contract'
 
   static args = {
     script: Args.string({
@@ -65,7 +65,7 @@ export default class Update extends PhatCommandBase {
       exclusive: ['accountFilePath'],
     }),
     endpoint: Flags.string({
-      description: 'Phala provider endpoint',
+      description: 'Phala Blockchain RPC endpoint',
       required: false,
     }),
     brickProfileFactory: Flags.string({
@@ -266,7 +266,7 @@ export default class Update extends PhatCommandBase {
     )
     ux.action.stop()
     this.log(
-      `The Phat Function for workflow ${workflowId} has been updated.`
+      `The JavaScript code for workflow ${workflowId} has been updated.`
     )
     this.exit(0)
   }

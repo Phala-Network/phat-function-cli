@@ -25,7 +25,7 @@ import {
 } from '../lib/runWebpack'
 
 export default class Upload extends PhatCommandBase {
-  static description = 'Upload JS to Phat Function'
+  static description = 'Upload JS to Phat Contract'
 
   static args = {
     script: Args.string({
@@ -59,7 +59,7 @@ export default class Upload extends PhatCommandBase {
       exclusive: ['accountFilePath'],
     }),
     endpoint: Flags.string({
-      description: 'Phala provider endpoint',
+      description: 'Phala Blockchain RPC endpoint',
       required: false,
     }),
     rpc: Flags.string({
@@ -283,14 +283,15 @@ export default class Upload extends PhatCommandBase {
     const externalAccountId = 0
     const result2 = await brickProfile.send.addWorkflowAndAuthorize(
       { cert, address: pair.address, pair },
-      `My PhatContract Oracle ${numberQuery.asOk.toNumber()}`,
+      `My Phat Contract ${numberQuery.asOk.toNumber()}`,
       JSON.stringify(actions),
       externalAccountId
     )
     await result2.waitFinalized()
     ux.action.stop()
+    const domain = isDev ? 'bricks-poc5.phala.network' : 'bricks.phala.network'
     this.log(
-      `🎉 Your workflow has been added, you can check it out here: https://bricks-poc5.phala.network/workflows/${brickProfileContractId}/${num}`
+      `🎉 Your workflow has been added, you can check it out here: https://${domain}/workflows/${brickProfileContractId}/${num}`
     )
     this.log('Your Attestor address:', attestor)
     this.log('Your WORKFLOW_ID:', numberQuery.asOk.toNumber())
