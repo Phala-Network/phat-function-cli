@@ -102,9 +102,13 @@ export default class Update extends PhatCommandBase {
     }
 
     const isDev = flags.mode === 'development' || flags.mode === 'dev'
-    let workflowId = flags.workflowId || process.env.WORKFLOW_ID
+    let workflowId = flags.workflowId
     if (workflowId === null || workflowId === undefined) {
-      workflowId =  await this.promptWorkflowId()
+      if (process.env.WORKFLOW_ID) {
+        workflowId = Number(process.env.WORKFLOW_ID)
+      } else {
+        workflowId =  await this.promptWorkflowId()
+      }
     }
     const pair = await this.getDecodedPair({
       suri: flags.suri || process.env.POLKADOT_WALLET_SURI,
@@ -269,7 +273,7 @@ export default class Update extends PhatCommandBase {
 
   async promptWorkflowId(
     message = 'Please enter your workflow ID'
-  ): Promise<string> {
+  ): Promise<number> {
     const { workflowId } = await inquirer.prompt([
       {
         name: 'workflowId',
@@ -277,6 +281,6 @@ export default class Update extends PhatCommandBase {
         message,
       },
     ])
-    return workflowId
+    return Number(workflowId)
   }
 }
