@@ -1,6 +1,6 @@
 {
   "name": "@phala/fn",
-  "version": "0.1.4",
+  "version": "0.1.12",
   "description": "Phat Function CLI toolkit",
   "bin": {
     "phat-fn": "bin/run"
@@ -18,8 +18,10 @@
   ],
   "dependencies": {
     "@oclif/core": "^2",
-    "@polkadot/util-crypto": "^12.4.2",
+    "@phala/sdk": "^0.5.3-nightly-20231011-1",
+    "@types/node-fetch": "2",
     "chalk": "4",
+    "dotenv": "^16.3.1",
     "ethers": "^6.7.1",
     "filesize": "^10.0.12",
     "inquirer": "8",
@@ -67,6 +69,12 @@
       },
       "watch": {
         "description": "Watch events from contract"
+      },
+      "upload": {
+        "description": "Upload your JS Phat Function"
+      },
+      "update": {
+        "description": "Update your JS Phat Function"
       }
     }
   },

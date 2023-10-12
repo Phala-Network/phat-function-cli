@@ -7,6 +7,10 @@ import inquirer from 'inquirer'
 import simpleGit from 'simple-git'
 
 const TEMPLATE_ALIASES: Record<string, { url: string; description: string }> = {
+  'phat-contract-starter-kit': {
+    url: 'https://github.com/Phala-Network/phat-contract-starter-kit',
+    description: 'The Phat Contract Starter Kit',
+  },
   'lensapi-oracle-consumer-contract': {
     url: 'https://github.com/Phala-Network/lensapi-oracle-consumer-contract',
     description: 'Polygon Consumer Contract for LensAPI Oracle',

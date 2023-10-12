@@ -17,6 +17,7 @@ module.exports = {
     quotes: ['error', 'single', { allowTemplateLiterals: true }],
     semi: ['error', 'never'],
     '@typescript-eslint/no-var-requires': 'off',
-    '@typescript-eslint/no-explicit-any': 'off'
+    '@typescript-eslint/no-explicit-any': 'off',
+    'no-constant-condition': 'off'
   },
 }
