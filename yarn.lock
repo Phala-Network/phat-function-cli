@@ -5301,6 +5301,11 @@ quick-lru@^5.1.1:
   resolved "https://registry.yarnpkg.com/quick-lru/-/quick-lru-5.1.1.tgz#366493e6b3e42a3a6885e2e99d18f80fb7a8c932"
   integrity sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==
 
+quickjs-emscripten-sync@^1.5.2:
+  version "1.5.2"
+  resolved "https://registry.yarnpkg.com/quickjs-emscripten-sync/-/quickjs-emscripten-sync-1.5.2.tgz#cb3038a6f6046200e498700eefb5cb1ca2ee9bef"
+  integrity sha512-TWwKQWXOKgQPt0efKIzFFZjHTu+9InM3Ou2s+jh4aYBy765zy20jZRiBZb52OU2JQ7DkBklICe03h9XOwDy3+Q==
+
 quickjs-emscripten@^0.23.0:
   version "0.23.0"
   resolved "https://registry.yarnpkg.com/quickjs-emscripten/-/quickjs-emscripten-0.23.0.tgz#94f412d0ee5f3021fc12ddf6c0b00bd8ce0d28b9"

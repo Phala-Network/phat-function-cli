@@ -1,4 +1,5 @@
 import { getQuickJS, QuickJSContext } from 'quickjs-emscripten'
+import { Arena } from 'quickjs-emscripten-sync'
 import { type HttpVerb } from 'then-request'
 import request from 'sync-request'
 import {
@@ -169,6 +170,53 @@ function polyfillConsole(context: QuickJSContext) {
   debugHandle.dispose()
 }
 
+function polyfillTextCoder(arena: Arena) {
+  const exposed = {
+    encode: (input: string) => {
+      return (new TextEncoder().encode(input))
+    },
+    encodeInto: (input: string, u8array: Record<string, number>) => {
+      const dest = new Uint8Array(Object.values(u8array))
+      const result = new TextEncoder().encodeInto(input, dest)
+      for (let i = 0; i < dest.length; i++) {
+        u8array[i] = dest[i]
+      }
+      return result
+    },
+    decode: (buffer: object) => {
+      return (new TextDecoder().decode(new Uint8Array(Object.values(buffer))))
+    },
+  }
+  arena.expose(exposed)
+  arena.evalCode(`
+    class TextEncoder {
+      get encoding() {
+        return 'utf-8'
+      }
+
+      encode(input) {
+        return encode(input)
+      }
+
+      encodeInto(src, dest) {
+        return encodeInto(src, dest)
+      }
+    }
+
+    class TextDecoder {
+      constructor(encoding = 'utf-8') {
+        if (encoding !== 'utf-8') {
+          throw new TypeError('Only utf-8 encoding is supported')
+        }
+      }
+
+      decode(bytes, options) {
+        return decode(bytes)
+      }
+    }
+  `)
+}
+
 function polyfillSilentConsole(context: QuickJSContext) {
   const consoleHandle = context.newObject()
 
@@ -192,12 +240,17 @@ export async function runQuickJs(
   const QuickJS = await getQuickJS()
   const runtime = QuickJS.newRuntime()
   const context = runtime.newContext()
+  const arena = new Arena(context, { isMarshalable: true })
+
   if (options.silent) {
     polyfillSilentConsole(context)
   } else {
     polyfillConsole(context)
   }
+
   polyfillPink(context)
+  polyfillTextCoder(arena)
+
   const scriptArgs = context.newArray()
   args.map((arg, i) => {
     const handle = context.newString(arg)
@@ -210,6 +263,7 @@ export async function runQuickJs(
   if (result.error) {
     const error = context.dump(result.error)
     result.error.dispose()
+    arena.dispose()
     context.dispose()
     runtime.dispose()
     throw new Error(error.message)
@@ -218,6 +272,7 @@ export async function runQuickJs(
   const output = context
     .getProp(context.global, 'scriptOutput')
     .consume(context.dump)
+  arena.dispose()
   context.dispose()
   runtime.dispose()
   return output
