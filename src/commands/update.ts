@@ -104,7 +104,7 @@ export default class Update extends PhatCommandBase {
     const isDev = flags.mode === 'development' || flags.mode === 'dev'
     let workflowId = flags.workflowId
     if (workflowId === null || workflowId === undefined) {
-      if (process.env.WORKFLOW_ID) {
+      if (process.env.WORKFLOW_ID !== null && process.env.WORKFLOW_ID !== undefined) {
         workflowId = Number(process.env.WORKFLOW_ID)
       } else {
         workflowId =  await this.promptWorkflowId()
