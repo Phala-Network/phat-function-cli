@@ -172,9 +172,15 @@ export default class Upload extends PhatCommandBase {
     ux.action.start('Querying your Brick Profile contract ID')
     let brickProfileFactoryContractId = flags.brickProfileFactory
     if (!brickProfileFactoryContractId) {
-      brickProfileFactoryContractId = isDev
-        ? '0x4a7861f257568a989a9c24db60981efb745d134a138203a219da051337428b49'
-        : '0xb59bcc4ea352f3d878874d8f496fb093bdf362fa59d6e577c075f41cd7c84924'
+      if (endpoint === 'wss://poc6.phala.network/ws') {
+        brickProfileFactoryContractId = '0x4a7861f257568a989a9c24db60981efb745d134a138203a219da051337428b49'
+      } else if (endpoint === 'wss://poc5.phala.network/ws') {
+        brickProfileFactoryContractId = '0x489bb4fa807bbe0f877ed46be8646867a8d16ec58add141977c4bd19b0237091'
+      } else if (endpoint === 'wss://api.phala.network/ws') {
+        brickProfileFactoryContractId = '0xb59bcc4ea352f3d878874d8f496fb093bdf362fa59d6e577c075f41cd7c84924'
+      } else {
+        brickProfileFactoryContractId = await this.promptBrickProfileFactory()
+      }
     }
     const brickProfileFactoryAbi = await this.loadAbiByContractId(
       registry,
@@ -322,5 +328,18 @@ export default class Upload extends PhatCommandBase {
       },
     ])
     return consumerAddress
+  }
+
+  async promptBrickProfileFactory(
+    message = 'Please enter the brick profile factory contract ID'
+  ): Promise<string> {
+    const { brickProfileFactory } = await inquirer.prompt([
+      {
+        name: 'brickProfileFactory',
+        type: 'input',
+        message,
+      },
+    ])
+    return brickProfileFactory
   }
 }
