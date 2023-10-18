@@ -118,6 +118,6 @@ export default class Init extends Command {
     this.log(`The project is created in ${localDir} 🎉`)
     this.log('Now run:\n')
     this.log(`  cd ${name}`)
-    this.log('  npm install')
+    this.log('  yarn install')
   }
 }
