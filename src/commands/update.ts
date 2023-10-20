@@ -31,7 +31,7 @@ interface WorkflowCodec extends Struct {
 }
 
 export default class Update extends PhatCommandBase {
-  static description = 'Upload JS to Phat Contract'
+  static description = 'Update Phat Contract JS'
 
   static args = {
     script: Args.string({
