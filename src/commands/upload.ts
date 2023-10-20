@@ -69,6 +69,7 @@ export default class Upload extends PhatCommandBase {
     brickProfileFactory: Flags.string({
       description: 'Brick profile factory contract address',
       required: false,
+      default: '',
     }),
     consumerAddress: Flags.string({
       description: 'Consumer contract address',
@@ -157,6 +158,7 @@ export default class Upload extends PhatCommandBase {
         ? 'wss://poc6.phala.network/ws'
         : 'wss://api.phala.network/ws'
     }
+
     ux.action.start(`Connecting to the endpoint: ${endpoint}`)
     const apiPromise = await ApiPromise.create(
       options({
@@ -295,9 +297,8 @@ export default class Upload extends PhatCommandBase {
     )
     await result2.waitFinalized()
     ux.action.stop()
-    const domain = isDev ? 'bricks-poc5.phala.network' : 'bricks.phala.network'
     this.log(
-      `🎉 Your workflow has been added, you can check it out here: https://${domain}/workflows/${brickProfileContractId}/${num}`
+      `🎉 Your workflow has been added, you can check it out here: https://bricks.phala.network/workflows/${brickProfileContractId}/${num}`
     )
     this.log('Your Attestor address:', attestor)
     this.log('Your WORKFLOW_ID:', numberQuery.asOk.toNumber())

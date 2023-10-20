@@ -71,6 +71,7 @@ export default class Update extends PhatCommandBase {
     brickProfileFactory: Flags.string({
       description: 'Brick profile factory contract address',
       required: false,
+      default: '',
     }),
     workflowId: Flags.integer({
       description: 'Workflow ID',
