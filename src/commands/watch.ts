@@ -7,7 +7,7 @@ import { resolveToAbsolutePath } from '../lib/utils'
 import { runQuickJs } from '../lib/runQuickJs'
 
 export default class Watch extends Command {
-  static description = 'Watch events from contract'
+  static description = 'Watch contract events and run Phat Function'
 
   static examples = [
     '<%= config.bin %> <%= command.id %>',
