@@ -33,12 +33,12 @@ npx @phala/fn --help
 ```
 
 ### Commands index
-* [`phat-fn init NAME`](#phat-fn-init)
-* [`phat-fn build [SCRIPT]`](#phat-fn-build)
-* [`phat-fn run SCRIPT`](#phat-fn-run)
-* [`phat-fn upload [SCRIPT]`](#phat-fn-upload)
-* [`phat-fn update [SCRIPT]`](#phat-fn-update)
-* [`phat-fn watch ADDRESS CONTRACT JS`](#phat-fn-update)
+* [`phat-fn init`](#phat-fn-init)
+* [`phat-fn build`](#phat-fn-build)
+* [`phat-fn run`](#phat-fn-run)
+* [`phat-fn upload`](#phat-fn-upload)
+* [`phat-fn update`](#phat-fn-update)
+* [`phat-fn watch`](#phat-fn-update)
 
 ## `phat-fn init`
 
@@ -49,7 +49,7 @@ USAGE
   $ phat-fn init NAME [-t <value>] [-d <value>] [-r]
 
 FLAGS
-  -d, --dir=<value>       The target location for the squid. If omitted, a new folder NAME is created.
+  -d, --dir=<value>       The target location for the project. If omitted, a new folder NAME is created.
   -r, --remove            Clean up the target directory if it exists
   -t, --template=<value>  Choose one of the templates:
                           - phat-contract-starter-kit The Phat Contract Starter Kit
@@ -228,7 +228,7 @@ This step requires you to have a Polkadot account. You can get an account from o
 - [Talisman Wallet](https://www.talisman.xyz/)
 - [SubWallet](https://www.subwallet.app/) (**Support for iOS/Android**)
 
-Then, create your Phala Profile account on the [Phala Testnet](https://bricks-poc5.phala.network) or [Phala Mainnet](https://bricks.phala.network). Here is a quick 1 minute [YouTube video](https://youtu.be/z1MR48NYtYc) on setting up from scratch.
+Then, create your Phala Profile account on the [Phala Testnet](https://bricks.phala.network) or [Phala Mainnet](https://bricks.phala.network). Here is a quick 1 minute [YouTube video](https://youtu.be/z1MR48NYtYc) on setting up from scratch.
 
 ### Option 1: Upload the script via exported Polkadot account file
 
