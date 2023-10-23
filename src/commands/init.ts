@@ -57,7 +57,7 @@ export default class Init extends Command {
     }),
     dir: Flags.string({
       char: 'd',
-      description: 'The target location for the squid. If omitted, a new folder NAME is created.',
+      description: 'The target location for the project. If omitted, a new folder NAME is created.',
       required: false,
     }),
     remove: Flags.boolean({
