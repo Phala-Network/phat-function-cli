@@ -254,7 +254,7 @@ npx @phala/fn upload --suri="raven valley laugh wait grid typical deny output di
 
 ### Option 3: Upload the script via environment variables
 
-You can create a `.env` file in your project directory and define POLKADOT_WALLET_SURI="this is a mnemonic phrase".
+You can create a `.env` file in your project directory and define `POLKADOT_WALLET_SURI="this is a mnemonic phrase"`.
 
 Then run the `upload` command and follow the prompts:
 
