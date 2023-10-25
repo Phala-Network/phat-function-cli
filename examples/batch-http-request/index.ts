@@ -1,7 +1,13 @@
 import '@phala/pink-env'
 
 export default function main() {
-  // You may need to call multiple APIs at once, this would require you to use the `pink.batchHttpRequest()` function to ensure you do not timeout (timeouts for Phat Contract is 10 seconds) on your response. The `args` and returned `Object` are the same as `pink.httpRequest()`, but instead you can create an array of HTTP requests within the function.
+  /*
+    You may need to call multiple APIs at once,
+    this would require you to use the `pink.batchHttpRequest()` function to ensure
+    you do not timeout (timeouts for Phat Contract is 10 seconds) on your response.
+    The `args` and returned `Object` are the same as `pink.httpRequest()`,
+    but instead you can create an array of HTTP requests within the function.
+  */
   const responses = pink.batchHttpRequest([
     {
       url: 'https://httpbin.org/ip',
