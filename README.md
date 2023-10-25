@@ -307,3 +307,4 @@ npx @phala/fn watch <Your Contract Address> <Your Contract JSON File> dist/index
 - [Batch HTTP Request](examples/batch-http-request/index.ts)
 - [ETH ABI Codec](examples/eth-abi-codec/index.ts)
 - [SCALE Codec](examples/scale-codec/index.ts)
+- [Call pink.invokeContract](examples/scale-codec/index.ts)
