@@ -195,7 +195,7 @@ function polyfillTextCoder(arena: Arena) {
       }
 
       encode(input) {
-        return encode(input)
+        return new Uint8Array(Object.values(encode(input)))
       }
 
       encodeInto(src, dest) {
