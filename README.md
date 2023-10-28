@@ -309,3 +309,5 @@ npx @phala/fn watch <Your Contract Address> <Your Contract JSON File> dist/index
 - [VIEM ABI Codec](examples/viem-abi-codec/index.ts)
 - [SCALE Codec](examples/scale-codec/index.ts)
 - [Call pink.invokeContract](examples/scale-codec/index.ts)
+- [Chainlink compatible VRF](examples/randomness-fullfillrandomwords)
+- [Randrange](examples/randomness-randrange)
