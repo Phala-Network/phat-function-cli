@@ -1,12 +1,12 @@
 import { getQuickJS, QuickJSContext } from 'quickjs-emscripten'
 import { Arena } from 'quickjs-emscripten-sync'
-import { type HttpVerb } from 'then-request'
-import request from 'sync-request'
 import {
   blake2AsU8a,
   sha256AsU8a,
   keccak256AsU8a,
 } from '@polkadot/util-crypto'
+
+import request, { type HttpMethod } from './sync-request'
 
 function isHexString(str: string): boolean {
   const regex = /^0x[0-9a-f]+$/
@@ -39,24 +39,22 @@ function hash(algorithm: string, message: Uint8Array | string): Uint8Array {
   }
 }
 
-function syncRequest(options: {
+function syncRequest(args: {
   url: string
-  method?: HttpVerb
+  method?: HttpMethod
   headers?: Record<string, string>
   body?: string
-  returnTextBody?: boolean
 }) {
-  if (typeof options.body === 'string' && isHexString(options.body)) {
-    options.body = hexToString(options.body)
+  if (typeof args.body === 'string' && isHexString(args.body)) {
+    args.body = hexToString(args.body)
   }
-  const res = request(options.method || 'GET', options.url, {
-    headers: options.headers,
-    body: options.body,
+  return request({
+    url: args.url,
+    method: args.method || 'GET',
+    headers: args.headers,
+    body: args.body,
+    timeout: 10,
   })
-  return {
-    statusCode: res.statusCode,
-    body: res.getBody(options.returnTextBody ? 'utf8' : ''),
-  }
 }
 
 function polyfillPink(context: QuickJSContext) {
@@ -68,8 +66,14 @@ function polyfillPink(context: QuickJSContext) {
     const resHandle = context.newObject()
     const statusHandle = context.newNumber(res.statusCode)
     context.setProp(resHandle, 'statusCode', statusHandle)
-    const bodyHandle = context.newString(res.body)
+    let bodyHandle
+    if (nativeArgs.returnTextBody) {
+      bodyHandle = context.newString(res.body)
+    } else {
+      bodyHandle = context.unwrapResult(context.evalCode(`new Uint8Array([${new TextEncoder().encode(res.body)}]);`))
+    }
     context.setProp(resHandle, 'body', bodyHandle)
+    bodyHandle.dispose()
     return resHandle
   })
 
@@ -83,7 +87,12 @@ function polyfillPink(context: QuickJSContext) {
         const resHandle = context.newObject()
         const statusHandle = context.newNumber(res.statusCode)
         context.setProp(resHandle, 'statusCode', statusHandle)
-        const bodyHandle = context.newString(res.body)
+        let bodyHandle
+        if (nativeArgs.returnTextBody) {
+          bodyHandle = context.newString(res.body)
+        } else {
+          bodyHandle = context.unwrapResult(context.evalCode(`new Uint8Array([${new TextEncoder().encode(res.body)}]);`))
+        }
         context.setProp(resHandle, 'body', bodyHandle)
         context.setProp(responsesHandle, i, resHandle)
         resHandle.dispose()
