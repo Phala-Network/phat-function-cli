@@ -1,4 +1,4 @@
-import { getQuickJS } from 'quickjs-emscripten'
+import { getQuickJS, QuickJSContext } from 'quickjs-emscripten'
 import { Arena } from 'quickjs-emscripten-sync'
 import {
   blake2AsU8a,
@@ -91,22 +91,59 @@ function polyfillPink(arena: Arena) {
   `)
 }
 
-function polyfillConsole(arena: Arena, silent: boolean) {
+function polyfillConsole(context: QuickJSContext, silent: boolean) {
+  const consoleHandle = context.newObject()
+
   if (silent) {
-    arena.expose({
-      console: {
-        log: () => {},
-        info: () => {},
-        warn: () => {},
-        error: () => {},
-        debug: () => {},
-      }
-    })
-  } else {
-    arena.expose({
-      console,
-    })
+    const handle = context.newFunction('info', () => {})
+    context.setProp(consoleHandle, 'info', handle)
+    context.setProp(consoleHandle, 'log', handle)
+    context.setProp(consoleHandle, 'warn', handle)
+    context.setProp(consoleHandle, 'error', handle)
+    context.setProp(consoleHandle, 'debug', handle)
+    context.setProp(context.global, 'console', consoleHandle)
+    consoleHandle.dispose()
+    handle.dispose()
+    return
   }
+
+  const infoHandle = context.newFunction('info', (...args) => {
+    const nativeArgs = args.map(context.dump)
+    console.info(...nativeArgs)
+  })
+  context.setProp(consoleHandle, 'info', infoHandle)
+
+  const logHandle = context.newFunction('log', (...args) => {
+    const nativeArgs = args.map(context.dump)
+    console.log(...nativeArgs)
+  })
+  context.setProp(consoleHandle, 'log', logHandle)
+
+  const warnHandle = context.newFunction('warn', (...args) => {
+    const nativeArgs = args.map(context.dump)
+    console.warn(...nativeArgs)
+  })
+  context.setProp(consoleHandle, 'warn', warnHandle)
+
+  const errorHandle = context.newFunction('error', (...args) => {
+    const nativeArgs = args.map(context.dump)
+    console.error(...nativeArgs)
+  })
+  context.setProp(consoleHandle, 'error', errorHandle)
+
+  const debugHandle = context.newFunction('debug', (...args) => {
+    const nativeArgs = args.map(context.dump)
+    console.debug(...nativeArgs)
+  })
+  context.setProp(consoleHandle, 'debug', debugHandle)
+
+  context.setProp(context.global, 'console', consoleHandle)
+  consoleHandle.dispose()
+  infoHandle.dispose()
+  logHandle.dispose()
+  warnHandle.dispose()
+  errorHandle.dispose()
+  debugHandle.dispose()
 }
 
 function polyfillTextCoder(arena: Arena) {
@@ -165,7 +202,7 @@ export async function runQuickJs(
   const context = runtime.newContext()
   const arena = new Arena(context, { isMarshalable: true })
 
-  polyfillConsole(arena, options.silent)
+  polyfillConsole(context, options.silent)
   polyfillTextCoder(arena)
   polyfillPink(arena)
 
