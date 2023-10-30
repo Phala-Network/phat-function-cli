@@ -1,12 +1,12 @@
 import { getQuickJS, QuickJSContext } from 'quickjs-emscripten'
 import { Arena } from 'quickjs-emscripten-sync'
-import { type HttpVerb } from 'then-request'
-import request from 'sync-request'
 import {
   blake2AsU8a,
   sha256AsU8a,
   keccak256AsU8a,
 } from '@polkadot/util-crypto'
+
+import request, { type HttpMethod } from './sync-request'
 
 function isHexString(str: string): boolean {
   const regex = /^0x[0-9a-f]+$/
@@ -18,6 +18,9 @@ const hexToString = (hex: string): string => {
 }
 
 function deriveSecret(salt: Uint8Array | string): Uint8Array {
+  if (typeof salt === 'object') {
+    salt = new Uint8Array(Object.values(salt))
+  }
   const buffer = new Uint8Array(4 + (salt instanceof Uint8Array ? salt.length : Buffer.from(salt).length))
   buffer.set([1, 2, 3, 4], 0)
   buffer.set(salt instanceof Uint8Array ? salt : Buffer.from(salt), 4)
@@ -25,6 +28,9 @@ function deriveSecret(salt: Uint8Array | string): Uint8Array {
 }
 
 function hash(algorithm: string, message: Uint8Array | string): Uint8Array {
+  if (typeof message === 'object') {
+    message = new Uint8Array(Object.values(message))
+  }
   switch (algorithm) {
   case 'blake2b128':
     return blake2AsU8a(message).slice(0, 16)
@@ -39,97 +45,67 @@ function hash(algorithm: string, message: Uint8Array | string): Uint8Array {
   }
 }
 
-function syncRequest(options: {
+function httpRequest(args: {
   url: string
-  method?: HttpVerb
+  method?: HttpMethod
   headers?: Record<string, string>
   body?: string
-  returnTextBody?: boolean
 }) {
-  if (typeof options.body === 'string' && isHexString(options.body)) {
-    options.body = hexToString(options.body)
+  if (typeof args.body === 'string' && isHexString(args.body)) {
+    args.body = hexToString(args.body)
   }
-  const res = request(options.method || 'GET', options.url, {
-    headers: options.headers,
-    body: options.body,
+  return request({
+    url: args.url,
+    method: args.method || 'GET',
+    headers: args.headers,
+    body: args.body,
+    timeout: 10,
   })
-  return {
-    statusCode: res.statusCode,
-    body: res.getBody(options.returnTextBody ? 'utf8' : ''),
-  }
 }
 
-function polyfillPink(context: QuickJSContext) {
-  const pinkHandle = context.newObject()
-
-  const httpRequestHandle = context.newFunction('httpRequest', (args) => {
-    const nativeArgs = context.dump(args)
-    const res = syncRequest(nativeArgs)
-    const resHandle = context.newObject()
-    const statusHandle = context.newNumber(res.statusCode)
-    context.setProp(resHandle, 'statusCode', statusHandle)
-    const bodyHandle = context.newString(res.body)
-    context.setProp(resHandle, 'body', bodyHandle)
-    return resHandle
+function polyfillPink(arena: Arena) {
+  arena.expose({
+    httpRequest,
+    deriveSecret,
+    hash,
   })
-
-  const batchHttpRequestHandle = context.newFunction(
-    'batchHttpRequest',
-    (args) => {
-      const nativeArgs = context.dump(args)
-      const responses = nativeArgs.map(syncRequest)
-      const responsesHandle = context.newArray()
-      responses.map((res: { statusCode: number; body: string }, i: number) => {
-        const resHandle = context.newObject()
-        const statusHandle = context.newNumber(res.statusCode)
-        context.setProp(resHandle, 'statusCode', statusHandle)
-        const bodyHandle = context.newString(res.body)
-        context.setProp(resHandle, 'body', bodyHandle)
-        context.setProp(responsesHandle, i, resHandle)
-        resHandle.dispose()
-      })
-      return responsesHandle
-    }
-  )
-
-  const deriveSecretHandle = context.newFunction(
-    'deriveSecret',
-    (args) => {
-      let salt = context.dump(args)
-      if (typeof salt === 'object') {
-        salt = new Uint8Array(Object.values(salt))
+  arena.evalCode(`
+    const pink = {
+      httpRequest: (args) => {
+        const res = httpRequest(args)
+        if (!args.returnTextBody) {
+          res.body = new TextEncoder().encode(res.body)
+        }
+        return res
+      },
+      batchHttpRequest: (args) => {
+        return args.map(pink.httpRequest)
+      },
+      deriveSecret: (salt) => {
+        return new Uint8Array(Object.values(deriveSecret(salt)))
+      },
+      hash: (algrithm, message) => {
+        return new Uint8Array(Object.values(hash(algrithm, message)))
       }
-      return context.evalCode(`new Uint8Array([${deriveSecret(salt)}]);`)
     }
-  )
-
-  const hashHandle = context.newFunction(
-    'hash',
-    (...args) => {
-      const nativeArgs = args.map(context.dump)
-      const algorithm = nativeArgs[0]
-      let message = nativeArgs[1]
-      if (typeof message === 'object') {
-        message = new Uint8Array(Object.values(message))
-      }
-      return context.evalCode(`new Uint8Array([${hash(algorithm, message)}]);`)
-    }
-  )
-
-  context.setProp(pinkHandle, 'httpRequest', httpRequestHandle)
-  context.setProp(pinkHandle, 'batchHttpRequest', batchHttpRequestHandle)
-  context.setProp(pinkHandle, 'deriveSecret', deriveSecretHandle)
-  context.setProp(pinkHandle, 'hash', hashHandle)
-  context.setProp(context.global, 'pink', pinkHandle)
-  httpRequestHandle.dispose()
-  batchHttpRequestHandle.dispose()
-  deriveSecretHandle.dispose()
-  hashHandle.dispose()
-  pinkHandle.dispose()
+  `)
 }
 
-function polyfillConsole(context: QuickJSContext) {
+function polyfillConsole(context: QuickJSContext, silent: boolean) {
   const consoleHandle = context.newObject()
+
+  if (silent) {
+    const handle = context.newFunction('info', () => {})
+    context.setProp(consoleHandle, 'info', handle)
+    context.setProp(consoleHandle, 'log', handle)
+    context.setProp(consoleHandle, 'warn', handle)
+    context.setProp(consoleHandle, 'error', handle)
+    context.setProp(consoleHandle, 'debug', handle)
+    context.setProp(context.global, 'console', consoleHandle)
+    consoleHandle.dispose()
+    handle.dispose()
+    return
+  }
 
   const infoHandle = context.newFunction('info', (...args) => {
     const nativeArgs = args.map(context.dump)
@@ -171,7 +147,7 @@ function polyfillConsole(context: QuickJSContext) {
 }
 
 function polyfillTextCoder(arena: Arena) {
-  const exposed = {
+  arena.expose({
     encode: (input: string) => {
       return (new TextEncoder().encode(input))
     },
@@ -186,8 +162,7 @@ function polyfillTextCoder(arena: Arena) {
     decode: (buffer: object) => {
       return (new TextDecoder().decode(new Uint8Array(Object.values(buffer))))
     },
-  }
-  arena.expose(exposed)
+  })
   arena.evalCode(`
     class TextEncoder {
       get encoding() {
@@ -217,21 +192,6 @@ function polyfillTextCoder(arena: Arena) {
   `)
 }
 
-function polyfillSilentConsole(context: QuickJSContext) {
-  const consoleHandle = context.newObject()
-
-  const handle = context.newFunction('info', () => {})
-  context.setProp(consoleHandle, 'info', handle)
-  context.setProp(consoleHandle, 'log', handle)
-  context.setProp(consoleHandle, 'warn', handle)
-  context.setProp(consoleHandle, 'error', handle)
-  context.setProp(consoleHandle, 'debug', handle)
-
-  context.setProp(context.global, 'console', consoleHandle)
-  consoleHandle.dispose()
-  handle.dispose()
-}
-
 export async function runQuickJs(
   code: string,
   args: string[] = [],
@@ -242,14 +202,9 @@ export async function runQuickJs(
   const context = runtime.newContext()
   const arena = new Arena(context, { isMarshalable: true })
 
-  if (options.silent) {
-    polyfillSilentConsole(context)
-  } else {
-    polyfillConsole(context)
-  }
-
-  polyfillPink(context)
+  polyfillConsole(context, options.silent)
   polyfillTextCoder(arena)
+  polyfillPink(arena)
 
   const scriptArgs = context.newArray()
   args.map((arg, i) => {
