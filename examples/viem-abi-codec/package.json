@@ -1,0 +1,11 @@
+{
+  "name": "viem-abi-codec",
+  "private": true,
+  "version": "0.0.0",
+  "dependencies": {
+    "viem": "^1.18.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  }
+}

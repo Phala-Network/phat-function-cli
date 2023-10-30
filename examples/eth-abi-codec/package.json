@@ -1,0 +1,11 @@
+{
+  "name": "eth-abi-codec",
+  "private": true,
+  "version": "0.0.0",
+  "dependencies": {
+    "@phala/ethers": "^6.6.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  }
+}

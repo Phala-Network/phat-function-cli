@@ -1,4 +1,4 @@
-import { vrf } from "@phala/pink-env";
+import { vrf } from '@phala/pink-env'
 import { encodeAbiParameters, decodeAbiParameters } from 'viem'
 
 type Hex = `0x${string}`
