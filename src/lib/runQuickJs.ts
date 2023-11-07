@@ -24,7 +24,7 @@ function deriveSecret(salt: Uint8Array | string): Uint8Array {
   const buffer = new Uint8Array(4 + (salt instanceof Uint8Array ? salt.length : Buffer.from(salt).length))
   buffer.set([1, 2, 3, 4], 0)
   buffer.set(salt instanceof Uint8Array ? salt : Buffer.from(salt), 4)
-  return blake2AsU8a(buffer)
+  return blake2AsU8a(buffer, 512)
 }
 
 function hash(algorithm: string, message: Uint8Array | string): Uint8Array {
