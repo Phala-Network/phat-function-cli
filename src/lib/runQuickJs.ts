@@ -221,7 +221,7 @@ export async function runQuickJs(
     arena.dispose()
     context.dispose()
     runtime.dispose()
-    throw new Error(error.message)
+    throw new Error(error.message || error)
   }
   context.unwrapResult(result).dispose()
   const output = context
