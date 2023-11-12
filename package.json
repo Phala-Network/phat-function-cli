@@ -14,7 +14,8 @@
   },
   "files": [
     "/bin",
-    "/dist"
+    "/dist",
+    "/tsconfig.build.json"
   ],
   "dependencies": {
     "@oclif/core": "^2",

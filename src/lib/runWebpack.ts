@@ -47,13 +47,9 @@ const getBaseConfig = (
         exclude: /node_modules/,
         loader: require.resolve('ts-loader'),
         options: {
-          compilerOptions: {
-            declaration: false,
-            moduleResolution: 'node',
-            module: 'es6',
-          },
+          configFile: require.resolve('../../tsconfig.build.json'),
           onlyCompileBundledFiles: true,
-        },
+        }
       },
     ],
   },
