@@ -6,14 +6,14 @@ import chalk from 'chalk'
 import { filesize } from 'filesize'
 import { Command, Args, Flags, ux } from '@oclif/core'
 import {
-  options,
+  getClient,
   OnChainRegistry,
   signCertificate,
   unsafeGetAbiFromGitHubRepoByCodeHash,
   PinkContractPromise,
   type CertificateData,
 } from '@phala/sdk'
-import { ApiPromise, WsProvider } from '@polkadot/api'
+import { ApiPromise } from '@polkadot/api'
 import { Abi } from '@polkadot/api-contract'
 import { waitReady } from '@polkadot/wasm-crypto'
 import { Keyring } from '@polkadot/keyring'
@@ -210,17 +210,12 @@ export default abstract class PhatCommandBase extends Command {
     endpoint: string
     pair: KeyringPair
   }): Promise<[ApiPromise, OnChainRegistry, CertificateData]> {
-    const apiPromise = await ApiPromise.create(
-      options({
-        provider: new WsProvider(endpoint),
-        noInitWarn: true,
-      })
-    )
-    const registry = await OnChainRegistry.create(apiPromise, {
-      pruntimeURL: this.parsedFlags.pruntimeUrl
+    const registry = await getClient({
+      transport: endpoint,
+      pruntimeURL: this.parsedFlags.pruntimeUrl,
     })
     const cert = await signCertificate({ pair })
-    return [apiPromise, registry, cert]
+    return [registry.api, registry, cert]
   }
 
   async getRollupAbi() {
