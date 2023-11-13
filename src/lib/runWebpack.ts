@@ -66,7 +66,7 @@ const getBaseConfig = (
 
 
 function modifyFilePath(filePath: string) {
-  let newFilePath = filePath.replace(/\/([^/]+)$/, '/_$1')
+  let newFilePath = filePath.replace(/([^/]+)$/, '_$1')
   if (!newFilePath.endsWith('.ts')) {
     newFilePath += '.ts'
   }
