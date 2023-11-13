@@ -52,15 +52,19 @@ export default class Build extends Command {
 
     const pjson_file_path = upath.join(directory, 'package.json')
     if (existsSync(pjson_file_path)) {
-      const pjson = JSON.parse(readFileSync(pjson_file_path).toString())
-      if (pjson.exports && typeof pjson.exports !== 'string') {
-        buildEntries = Object.entries(pjson.exports as Record<string, string>).reduce(
-          (acc, [key, value]) => {
-            acc[key] = value
-            return acc
-          },
-          { ...buildEntries },
-        )
+      try {
+        const pjson = JSON.parse(readFileSync(pjson_file_path).toString())
+        if (pjson.exports && typeof pjson.exports !== 'string') {
+          buildEntries = Object.entries(pjson.exports as Record<string, string>).reduce(
+            (acc, [key, value]) => {
+              acc[key] = value
+              return acc
+            },
+            { ...buildEntries },
+          )
+        }
+      } catch (error) {
+        this.error(`Error parsing package.json: ${error}`)
       }
     }
 
