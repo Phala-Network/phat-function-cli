@@ -1,4 +1,4 @@
-import { lstatSync, readFileSync } from 'node:fs'
+import { lstatSync, readFileSync, existsSync } from 'node:fs'
 import upath from 'upath'
 import { Args, Command, Flags, ux } from '@oclif/core'
 import chalk from 'chalk'
@@ -48,15 +48,24 @@ export default class Build extends Command {
     let buildEntries: Record<string, string> = {
       [upath.parse(script).name]: script,
     }
-    const pjson = JSON.parse(readFileSync(upath.join(directory, 'package.json')).toString())
-    if (pjson.exports && typeof pjson.exports !== 'string') {
-      buildEntries = Object.entries(pjson.exports as Record<string, string>).reduce(
-        (acc, [key, value]) => {
-          acc[key] = value
-          return acc
-        },
-        { ...buildEntries },
-      )
+
+
+    const pjson_file_path = upath.join(directory, 'package.json')
+    if (existsSync(pjson_file_path)) {
+      try {
+        const pjson = JSON.parse(readFileSync(pjson_file_path).toString())
+        if (pjson.exports && typeof pjson.exports !== 'string') {
+          buildEntries = Object.entries(pjson.exports as Record<string, string>).reduce(
+            (acc, [key, value]) => {
+              acc[key] = value
+              return acc
+            },
+            { ...buildEntries },
+          )
+        }
+      } catch (error) {
+        this.error(`Error parsing package.json: ${error}`)
+      }
     }
 
     for (const i in buildEntries) {

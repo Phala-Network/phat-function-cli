@@ -14,11 +14,12 @@
   },
   "files": [
     "/bin",
-    "/dist"
+    "/dist",
+    "/tsconfig.build.json"
   ],
   "dependencies": {
     "@oclif/core": "^2",
-    "@phala/sdk": "^0.5.3-nightly-20231013",
+    "@phala/sdk": "0.5.5-nightly-20231111",
     "@types/node-fetch": "2",
     "chalk": "4",
     "dotenv": "^16.3.1",

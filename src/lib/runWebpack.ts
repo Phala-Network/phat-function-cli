@@ -47,13 +47,9 @@ const getBaseConfig = (
         exclude: /node_modules/,
         loader: require.resolve('ts-loader'),
         options: {
-          compilerOptions: {
-            declaration: false,
-            moduleResolution: 'node',
-            module: 'es6',
-          },
+          configFile: require.resolve('../../tsconfig.build.json'),
           onlyCompileBundledFiles: true,
-        },
+        }
       },
     ],
   },
@@ -70,7 +66,7 @@ const getBaseConfig = (
 
 
 function modifyFilePath(filePath: string) {
-  let newFilePath = filePath.replace(/\/([^/]+)$/, '/_$1')
+  let newFilePath = filePath.replace(/([^/]+)$/, '_$1')
   if (!newFilePath.endsWith('.ts')) {
     newFilePath += '.ts'
   }
