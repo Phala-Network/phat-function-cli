@@ -14,6 +14,9 @@ import { formatWebpackMessages } from '../lib/formatWebpackMessages'
 export const MAX_BUILD_SIZE = 1024 * 400
 
 const BUILD_CODE_TEMPLATE = `
+  declare global {
+    var pink: any;
+  }
   // @ts-ignore
   import entry from '{filePath}';
   (globalThis as any).scriptOutput = entry.apply(null, (globalThis as any).scriptArgs);
