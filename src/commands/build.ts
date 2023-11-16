@@ -37,6 +37,11 @@ export default class Build extends Command {
       char: 's',
       description: 'Silent mode'
     }),
+    clean: Flags.boolean({
+      char: 'c',
+      description: 'Clean the output directory',
+      default: false,
+    }),
     mode: Flags.custom({
       options: ['production', 'prod', 'development', 'dev'],
       default: 'production',
@@ -88,7 +93,7 @@ export default class Build extends Command {
 
     try {
       const stats = await runWebpack({
-        clean: !flags.output,
+        clean: flags.output ? false : flags.clean,
         projectDir: directory,
         outputDir: flags.output ? upath.resolve(upath.dirname(flags.output)) : outputDir,
         outputFileName: flags.output ? upath.basename(flags.output) : undefined,
