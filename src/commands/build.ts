@@ -30,6 +30,10 @@ export default class Build extends Command {
       char: 'w',
       description: 'Custom webpack config',
     }),
+    silent: Flags.boolean({
+      char: 's',
+      description: 'Silent mode'
+    }),
     mode: Flags.custom({
       options: ['production', 'prod', 'development', 'dev'],
       default: 'production',
@@ -75,7 +79,9 @@ export default class Build extends Command {
       }
     }
 
-    ux.action.start('Creating an optimized build')
+    if (!flags.silent) {
+      ux.action.start('Creating an optimized build')
+    }
 
     try {
       const stats = await runWebpack({
@@ -86,10 +92,14 @@ export default class Build extends Command {
         outputDir,
         isDev,
       })
-      ux.action.stop()
-      printFileSizesAfterBuild(stats)
+      if (!flags.silent) {
+        ux.action.stop()
+        printFileSizesAfterBuild(stats)
+      }
     } catch (error: any) {
-      ux.action.stop(chalk.red('Failed to compile.\n'))
+      if (!flags.silent) {
+        ux.action.stop(chalk.red('Failed to compile.\n'))
+      }
       return this.error(error)
     }
   }
