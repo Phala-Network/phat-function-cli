@@ -18,12 +18,15 @@ export default class Build extends Command {
   }
 
   static flags = {
-    location: Flags.string({
+    directory: Flags.string({
       char: 'd',
-      description: 'Location directory',
+      description: 'Specify the script directory',
     }),
     output: Flags.string({
       char: 'o',
+      description: 'Output file',
+    }),
+    outputDir: Flags.string({
       description: 'Output directory',
     }),
     webpack: Flags.string({
@@ -42,13 +45,13 @@ export default class Build extends Command {
 
   public async run(): Promise<void> {
     const { flags, args: { script } } = await this.parse(Build)
-    const directory = flags.location ? resolveToAbsolutePath(flags.location) : process.cwd()
+    const directory = flags.directory ? resolveToAbsolutePath(flags.directory) : process.cwd()
     const isDev = flags.mode === 'development' || flags.mode === 'dev'
     if (!lstatSync(directory).isDirectory()) {
       this.error('Location directory is not a valid directory')
     }
 
-    const outputDir = upath.resolve(directory, flags.output ?? 'dist')
+    const outputDir = upath.resolve(directory, flags.outputDir ?? 'dist')
     let buildEntries: Record<string, string> = {
       [upath.parse(script).name]: script,
     }
@@ -85,11 +88,12 @@ export default class Build extends Command {
 
     try {
       const stats = await runWebpack({
-        clean: true,
+        clean: !flags.output,
         projectDir: directory,
+        outputDir: flags.output ? upath.resolve(upath.dirname(flags.output)) : outputDir,
+        outputFileName: flags.output ? upath.basename(flags.output) : undefined,
         customWebpack: flags.webpack,
         buildEntries,
-        outputDir,
         isDev,
       })
       if (!flags.silent) {

@@ -22,7 +22,7 @@ const BUILD_CODE_TEMPLATE = `
 const getBaseConfig = (
   buildEntries: Configuration['entry'],
   projectDir: string,
-  outputDir: string,
+  outputDir?: string,
   development?: boolean,
 ): webpack.Configuration => ({
   mode: development ? 'development' : 'production',
@@ -77,13 +77,15 @@ export async function runWebpack({
   buildEntries,
   projectDir,
   outputDir,
+  outputFileName,
   customWebpack,
   isDev = false,
   clean = false,
 }: {
   buildEntries: Configuration['entry'],
   projectDir: string,
-  outputDir: string,
+  outputDir?: string,
+  outputFileName?: string,
   customWebpack?: string,
   isDev: boolean,
   clean: boolean,
@@ -101,7 +103,8 @@ export async function runWebpack({
     getBaseConfig(newBuildEntries, projectDir, outputDir, isDev),
     {
       output: {
-        clean
+        clean,
+        filename: outputFileName,
       },
       plugins: [
         virtualModules,
