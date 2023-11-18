@@ -88,7 +88,7 @@
     "test": "mocha --forbid-only \"test/**/*.test.ts\""
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18"
   },
   "types": "dist/index.d.ts",
   "bugs": {

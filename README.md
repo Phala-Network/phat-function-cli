@@ -3,7 +3,7 @@ Phat Function CLI toolkit
 
 ## Requirements
 
-Node.js >= 16.0.0
+Node.js >= 18
 
 ## Install
 
