@@ -600,10 +600,10 @@
   dependencies:
     "@octokit/openapi-types" "^12.11.0"
 
-"@phala/sdk@^0.6.0-nightly-20231114":
-  version "0.6.0-nightly-20231114"
-  resolved "https://registry.yarnpkg.com/@phala/sdk/-/sdk-0.6.0-nightly-20231114.tgz#1b9803f72b62c8acbfaac85d165d9e5879d380cc"
-  integrity sha512-zvzn0fwj96JC4UDLwryID7cNFoGp4PSMVaeQ05uY6Snf5RLVmlQhAdTH+Ubr31iEm6O56ZJGOXoztchBJ+psUA==
+"@phala/sdk@^0.5.6":
+  version "0.5.6"
+  resolved "https://registry.yarnpkg.com/@phala/sdk/-/sdk-0.5.6.tgz#8453df04d668b7abddb7ce72afd0712512bfd08f"
+  integrity sha512-bNAJ1CCt01KT6WrWWiO++o+qMFM2eD8xSEksRybjK9rIjO0oDtfxd2nhLAg06J9LM043E9dkHtWJjTfrkqT6jA==
   dependencies:
     "@polkadot/api" "^10.9.1"
     "@polkadot/api-contract" "^10.9.1"
