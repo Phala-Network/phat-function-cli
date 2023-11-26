@@ -8,5 +8,8 @@
     "declaration": false,
     "moduleResolution": "node",
     "allowJs": true
-  }
+  },
+  "include": [
+    "node_modules/@phala/pink-env"
+  ]
 }

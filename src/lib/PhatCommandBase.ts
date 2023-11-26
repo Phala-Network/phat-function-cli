@@ -234,7 +234,7 @@ export default abstract class PhatCommandBase extends Command {
     try {
       ux.action.start('Creating an optimized build')
       const stats = await runWebpack({
-        clean: true,
+        clean: false,
         projectDir: directory,
         customWebpack: this.parsedFlags.webpack,
         buildEntries: {
