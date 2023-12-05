@@ -153,8 +153,6 @@ export default abstract class PhatCommandBase extends Command {
     if (!brickProfileFactoryContractId) {
       if (endpoint === 'wss://poc6.phala.network/ws') {
         brickProfileFactoryContractId = '0x4a7861f257568a989a9c24db60981efb745d134a138203a219da051337428b49'
-      } else if (endpoint === 'wss://poc5.phala.network/ws') {
-        brickProfileFactoryContractId = '0x489bb4fa807bbe0f877ed46be8646867a8d16ec58add141977c4bd19b0237091'
       } else if (endpoint === 'wss://api.phala.network/ws') {
         brickProfileFactoryContractId = '0xb59bcc4ea352f3d878874d8f496fb093bdf362fa59d6e577c075f41cd7c84924'
       } else {
