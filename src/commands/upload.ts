@@ -7,6 +7,7 @@ import {
 } from '@phala/sdk'
 
 import PhatCommandBase from '../lib/PhatCommandBase'
+import type { BrickProfileContract } from '../lib/PhatCommandBase'
 
 export default class Upload extends PhatCommandBase {
   static description = 'Upload JS to Phat Contract'
@@ -60,7 +61,7 @@ export default class Upload extends PhatCommandBase {
     const brickProfileContractKey = await registry.getContractKeyOrFail(
       brickProfileContractId
     )
-    const brickProfile = new PinkContractPromise(
+    const brickProfile: BrickProfileContract = new PinkContractPromise(
       apiPromise,
       registry,
       brickProfileAbi,
@@ -123,7 +124,11 @@ export default class Upload extends PhatCommandBase {
     )
     const num = numberQuery.asOk.toNumber()
 
-    const externalAccountId = 0
+    const externalAccountId = await this.promptEvmAccountId({
+      contract: brickProfile,
+      cert,
+    })
+
     const result2 = await brickProfile.send.addWorkflowAndAuthorize(
       { cert, address: pair.address, pair },
       `My Phat Contract ${numberQuery.asOk.toNumber()}`,

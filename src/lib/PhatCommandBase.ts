@@ -11,6 +11,7 @@ import {
   signCertificate,
   unsafeGetAbiFromGitHubRepoByCodeHash,
   PinkContractPromise,
+  PinkContractQuery,
   type CertificateData,
 } from '@phala/sdk'
 import { ApiPromise } from '@polkadot/api'
@@ -18,8 +19,8 @@ import { Abi } from '@polkadot/api-contract'
 import { waitReady } from '@polkadot/wasm-crypto'
 import { Keyring } from '@polkadot/keyring'
 import { type KeyringPair } from '@polkadot/keyring/types'
-import type { Result } from '@polkadot/types'
-import { type AccountId } from '@polkadot/types/interfaces'
+import type { Result, Vec, u64, u8, Text, Struct } from '@polkadot/types'
+import type { AccountId } from '@polkadot/types/interfaces'
 
 import {
   MAX_BUILD_SIZE,
@@ -45,6 +46,21 @@ export interface ParsedFlags {
 interface ParsedArgs {
   readonly script: string
 }
+
+export interface ExternalAccountCodec extends Struct {
+  id: u64
+  address: Vec<u8>
+  rpc: Text
+}
+
+export type BrickProfileContract = PinkContractPromise<
+  {
+    getAllEvmAccounts: PinkContractQuery<
+      [],
+      Result<Vec<ExternalAccountCodec>, any>
+    >
+  }
+>
 
 export default abstract class PhatCommandBase extends Command {
   static args = {
@@ -263,6 +279,45 @@ export default abstract class PhatCommandBase extends Command {
       ux.action.stop(chalk.red('Failed to compile.\n'))
       return this.error(error)
     }
+  }
+
+  async promptEvmAccountId({
+    contract,
+    cert,
+  }: {
+    contract: BrickProfileContract,
+    cert: CertificateData,
+  }) {
+    ux.action.start('Querying your external accounts')
+    const { output } = await contract.query.getAllEvmAccounts(cert.address, {
+      cert,
+    })
+    ux.action.stop()
+
+    if (output.isErr) {
+      this.error(output.asErr.toString())
+    }
+    if (output.asOk.isErr) {
+      this.error(output.asOk.asErr.toString())
+    }
+    const accounts = output.asOk.asOk.map((i) => {
+      const obj = i.toJSON()
+      return {
+        id: obj.id,
+        address: obj.address,
+        rpcEndpoint: obj.rpc,
+      }
+    })
+    const { account } = await inquirer.prompt({
+      name: 'account',
+      message: 'Please select an external account:',
+      type: 'list',
+      choices: accounts.map(account => ({
+        name: `${account.address}. ${chalk.dim(account.rpcEndpoint)}`,
+        value: account.id,
+      })),
+    })
+    return account
   }
 
   async promptRpc(
