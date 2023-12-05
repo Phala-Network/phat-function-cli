@@ -92,8 +92,15 @@ export default class Upload extends PhatCommandBase {
       contractPromise.address.toHex()
     )
 
-    // Step 4: Setting up the actions.
-    ux.action.start('Setting up the actions')
+    // Step 4: Select an external account.
+    const externalAccountId = await this.promptEvmAccountId({
+      contract: brickProfile,
+      cert,
+    })
+
+
+    // Step 5: Preparing the settings.
+    ux.action.start('Preparing the settings')
     const { output: attestorQuery } =
       await contractPromise.query.getAttestAddress(cert.address, { cert })
     const attestor = attestorQuery.asOk.toHex()
@@ -123,15 +130,15 @@ export default class Upload extends PhatCommandBase {
       { cert }
     )
     const num = numberQuery.asOk.toNumber()
+    ux.action.stop()
 
-    const externalAccountId = await this.promptEvmAccountId({
-      contract: brickProfile,
-      cert,
-    })
+    const projectName = await this.promptProjectName(`My Phat Contract ${numberQuery.asOk.toNumber()}`)
 
+    // Step 6: Setting up the actions.
+    ux.action.start('Setting up the actions')
     const result2 = await brickProfile.send.addWorkflowAndAuthorize(
       { cert, address: pair.address, pair },
-      `My Phat Contract ${numberQuery.asOk.toNumber()}`,
+      projectName,
       JSON.stringify(actions),
       externalAccountId
     )

@@ -320,6 +320,20 @@ export default abstract class PhatCommandBase extends Command {
     return account
   }
 
+  async promptProjectName(
+    defaultName: string
+  ): Promise<string> {
+    const { name } = await inquirer.prompt([
+      {
+        name: 'name',
+        type: 'input',
+        message: 'Please enter your project name',
+        default: defaultName,
+      },
+    ])
+    return name
+  }
+
   async promptRpc(
     message = 'Please enter your client RPC URL'
   ): Promise<string> {
