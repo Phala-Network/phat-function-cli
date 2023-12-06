@@ -4,7 +4,7 @@ import inquirer from 'inquirer'
 import * as dotenv from 'dotenv'
 import chalk from 'chalk'
 import { filesize } from 'filesize'
-import { Command, Args, Flags, ux } from '@oclif/core'
+import { Args, Flags } from '@oclif/core'
 import {
   getClient,
   OnChainRegistry,
@@ -25,8 +25,9 @@ import type { AccountId } from '@polkadot/types/interfaces'
 import {
   MAX_BUILD_SIZE,
   runWebpack,
-  printFileSizesAfterBuild,
 } from '../lib/runWebpack'
+import { formatWebpackMessages } from '../lib/formatWebpackMessages'
+import BaseCommand from '../lib/BaseCommand'
 
 export interface ParsedFlags {
   readonly build: boolean
@@ -62,7 +63,7 @@ export type BrickProfileContract = PinkContractPromise<
   }
 >
 
-export default abstract class PhatCommandBase extends Command {
+export default abstract class PhatCommandBase extends BaseCommand {
   static args = {
     script: Args.string({
       description: 'The function script file',
@@ -149,6 +150,15 @@ export default abstract class PhatCommandBase extends Command {
 
     this.parsedFlags = flags as never
     this.parsedArgs = args as never
+
+    // temporary hijacking console.warn to ignore wrong printing
+    // see: https://github.com/polkadot-js/api/issues/5760
+    console.warn = function (...args: any[]) {
+      if (args.length && args[0] === 'Unable to map [u8; 32] to a lookup index') {
+        return
+      }
+      console.log(...args)
+    }
   }
 
   getEndpoint() {
@@ -224,11 +234,13 @@ export default abstract class PhatCommandBase extends Command {
     endpoint: string
     pair: KeyringPair
   }): Promise<[ApiPromise, OnChainRegistry, CertificateData]> {
+    this.action.start(`Connecting to the endpoint: ${endpoint}`)
     const registry = await getClient({
       transport: endpoint,
       pruntimeURL: this.parsedFlags.pruntimeUrl,
     })
     const cert = await signCertificate({ pair })
+    this.action.stop()
     return [registry.api, registry, cert]
   }
 
@@ -246,7 +258,7 @@ export default abstract class PhatCommandBase extends Command {
 
     const directory = process.cwd()
     try {
-      ux.action.start('Creating an optimized build')
+      this.action.start('Creating an optimized build')
       const stats = await runWebpack({
         clean: false,
         projectDir: directory,
@@ -257,15 +269,30 @@ export default abstract class PhatCommandBase extends Command {
         outputDir: upath.resolve(directory, 'dist'),
         isDev: false,
       })
-      ux.action.stop()
-      const buildAssets = printFileSizesAfterBuild(stats)
+      const json = stats.toJson({
+        all: false,
+        warnings: true,
+        assets: true,
+        outputPath: true
+      })
+      const messages = formatWebpackMessages(json)
 
-      if (!buildAssets || !buildAssets.length) {
-        return this.error('Build assets not found')
+      if (messages.warnings && messages.warnings.length) {
+        this.action.warn('Compiled with warnings.')
+        this.log(messages.warnings.join('\n\n'))
+      } else {
+        this.action.succeed('Compiled successfully.')
       }
 
-      if (buildAssets[0].size > MAX_BUILD_SIZE) {
-        this.error(
+      if (!json.assets || !json.assets.length) {
+        throw new Error('Build assets not found.')
+      }
+
+      const assetPath = upath.join(json.outputPath ?? '', json.assets[0].name)
+      const { size } = fs.statSync(assetPath)
+
+      if (size > MAX_BUILD_SIZE) {
+        throw new Error(
           `The file size exceeds the limit of ${filesize(MAX_BUILD_SIZE, {
             base: 2,
             standard: 'jedec',
@@ -273,11 +300,12 @@ export default abstract class PhatCommandBase extends Command {
         )
       }
 
-      return upath.join(buildAssets[0].outputPath, buildAssets[0].name)
-
-    } catch (error: any) {
-      ux.action.stop(chalk.red('Failed to compile.\n'))
-      return this.error(error)
+      return assetPath
+    } catch (error) {
+      this.action.fail('Failed to compile.')
+      return this.error(error as Error)
+    } finally {
+      this.action.stop()
     }
   }
 
@@ -288,36 +316,41 @@ export default abstract class PhatCommandBase extends Command {
     contract: BrickProfileContract,
     cert: CertificateData,
   }) {
-    ux.action.start('Querying your external accounts')
-    const { output } = await contract.query.getAllEvmAccounts(cert.address, {
-      cert,
-    })
-    ux.action.stop()
+    try {
+      this.action.start('Querying your external accounts')
+      const { output } = await contract.query.getAllEvmAccounts(cert.address, {
+        cert,
+      })
 
-    if (output.isErr) {
-      this.error(output.asErr.toString())
-    }
-    if (output.asOk.isErr) {
-      this.error(output.asOk.asErr.toString())
-    }
-    const accounts = output.asOk.asOk.map((i) => {
-      const obj = i.toJSON()
-      return {
-        id: obj.id,
-        address: obj.address,
-        rpcEndpoint: obj.rpc,
+      if (output.isErr) {
+        throw new Error(output.asErr.toString())
       }
-    })
-    const { account } = await inquirer.prompt({
-      name: 'account',
-      message: 'Please select an external account:',
-      type: 'list',
-      choices: accounts.map(account => ({
-        name: `${account.address}. ${chalk.dim(account.rpcEndpoint)}`,
-        value: account.id,
-      })),
-    })
-    return account
+      if (output.asOk.isErr) {
+        throw new Error(output.asOk.asErr.toString())
+      }
+      const accounts = output.asOk.asOk.map((i) => {
+        const obj = i.toJSON()
+        return {
+          id: obj.id,
+          address: obj.address,
+          rpcEndpoint: obj.rpc,
+        }
+      })
+      this.action.stop()
+      const { account } = await inquirer.prompt({
+        name: 'account',
+        message: 'Please select an external account:',
+        type: 'list',
+        choices: accounts.map(account => ({
+          name: `${account.address}. ${chalk.dim(account.rpcEndpoint)}`,
+          value: account.id,
+        })),
+      })
+      return account
+    } catch (error) {
+      this.action.fail('Failed to query your external accounts.')
+      return this.error(error as Error)
+    }
   }
 
   async promptProjectName(

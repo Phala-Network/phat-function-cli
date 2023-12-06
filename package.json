@@ -27,6 +27,7 @@
     "ethers": "^6.7.1",
     "filesize": "^10.0.12",
     "inquirer": "8",
+    "ora": "5",
     "quickjs-emscripten": "^0.23.0",
     "quickjs-emscripten-sync": "^1.5.2",
     "simple-git": "^3.19.1",

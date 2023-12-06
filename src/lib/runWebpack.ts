@@ -1,7 +1,7 @@
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import upath from 'upath'
-import webpack, { Configuration, Stats } from 'webpack'
+import webpack, { Configuration, Stats, StatsCompilation } from 'webpack'
 import TerserPlugin from 'terser-webpack-plugin'
 import VirtualModulesPlugin from 'webpack-virtual-modules'
 import { merge, mergeWithCustomize, customizeArray } from 'webpack-merge'
@@ -139,17 +139,9 @@ export async function runWebpack({
 }
 
 export function printFileSizesAfterBuild(
-  stats: Stats,
+  json: StatsCompilation,
   maxSize: number = MAX_BUILD_SIZE,
 ) {
-  const json = stats.toJson({ all: false, warnings: true, assets: true, outputPath: true })
-  const messages = formatWebpackMessages(json)
-  if (messages.warnings && messages.warnings.length) {
-    console.log(chalk.yellow('Compiled with warnings.\n'))
-    console.log(messages.warnings.join('\n\n'))
-  } else {
-    console.log(chalk.green('Compiled successfully.\n'))
-  }
   const assets = (json.assets ?? []).map(asset => {
     const { size } = statSync(upath.join(json.outputPath ?? '', asset.name))
     return {

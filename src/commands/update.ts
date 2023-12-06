@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import { ux, Flags } from '@oclif/core'
+import { Flags } from '@oclif/core'
 import type { Result, Struct, u16, Text, Bool } from '@polkadot/types'
 import {
   PinkContractPromise,
@@ -42,15 +42,13 @@ export default class Update extends PhatCommandBase {
 
     // Step 1: Connect to the endpoint.
     const endpoint = this.getEndpoint()
-    ux.action.start(`Connecting to the endpoint: ${endpoint}`)
     const [apiPromise, registry, cert] = await this.connect({
       endpoint,
       pair,
     })
-    ux.action.stop()
 
     // Step 2: Query the brick profile contract id.
-    ux.action.start('Querying your Brick Profile contract ID')
+    this.action.start('Querying your Brick Profile contract ID')
     const brickProfileContractId = await this.getBrickProfileContractId({
       endpoint,
       registry,
@@ -58,11 +56,11 @@ export default class Update extends PhatCommandBase {
       pair,
       cert,
     })
-    ux.action.stop()
+    this.action.stop()
     this.log(`Your Brick Profile contract ID: ${brickProfileContractId}`)
 
     // Step 3: Check current user workflow settings.
-    ux.action.start('Checking your workflow settings')
+    this.action.start('Checking your workflow settings')
     const brickProfileAbi = await this.loadAbiByContractId(
       registry,
       brickProfileContractId
@@ -92,10 +90,10 @@ export default class Update extends PhatCommandBase {
         }\nActual: ${rollupAbi.info.source.wasmHash.toHex()}\n`
       )
     }
-    ux.action.stop()
+    this.action.stop()
 
     // Step 4: Update the JS.
-    ux.action.start('Updating')
+    this.action.start('Updating')
     const actionOffchainRollupContractId = actions[0].config.callee
     const rollupContractKey = await registry.getContractKeyOrFail(
       actionOffchainRollupContractId
@@ -111,7 +109,7 @@ export default class Update extends PhatCommandBase {
       { cert, address: pair.address, pair },
       fs.readFileSync(buildScriptPath, 'utf8'),
     )
-    ux.action.stop()
+    this.action.stop()
     this.log(
       `The JavaScript code for workflow ${workflowId} has been updated.`
     )
