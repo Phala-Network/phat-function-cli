@@ -56,8 +56,7 @@ export default class Update extends PhatBaseCommand {
       pair,
       cert,
     })
-    this.action.stop()
-    this.log(`Your Brick Profile contract ID: ${brickProfileContractId}`)
+    this.action.succeed(`Your Brick Profile contract ID: ${brickProfileContractId}`)
 
     // Step 3: Check current user workflow settings.
     this.action.start('Checking your workflow settings')
@@ -109,8 +108,7 @@ export default class Update extends PhatBaseCommand {
       { cert, address: pair.address, pair },
       fs.readFileSync(buildScriptPath, 'utf8'),
     )
-    this.action.stop()
-    this.log(
+    this.action.succeed(
       `The JavaScript code for workflow ${workflowId} has been updated.`
     )
     this.exit(0)
