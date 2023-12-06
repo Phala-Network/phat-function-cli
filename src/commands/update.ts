@@ -6,7 +6,7 @@ import {
 } from '@phala/sdk'
 import inquirer from 'inquirer'
 
-import PhatCommandBase, { type ParsedFlags } from '../lib/PhatCommandBase'
+import PhatBaseCommand, { type ParsedFlags } from '../lib/PhatBaseCommand'
 
 interface WorkflowCodec extends Struct {
   id: u16
@@ -15,15 +15,15 @@ interface WorkflowCodec extends Struct {
   commandline: Text
 }
 
-export default class Update extends PhatCommandBase {
+export default class Update extends PhatBaseCommand {
   static description = 'Update Phat Contract JS'
 
   static args = {
-    ...PhatCommandBase.args
+    ...PhatBaseCommand.args
   }
 
   static flags = {
-    ...PhatCommandBase.flags,
+    ...PhatBaseCommand.flags,
     workflowId: Flags.integer({
       description: 'Workflow ID',
       required: false,

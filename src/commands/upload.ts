@@ -5,18 +5,18 @@ import {
   PinkBlueprintPromise,
 } from '@phala/sdk'
 
-import PhatCommandBase from '../lib/PhatCommandBase'
-import type { BrickProfileContract } from '../lib/PhatCommandBase'
+import PhatBaseCommand from '../lib/PhatBaseCommand'
+import type { BrickProfileContract } from '../lib/PhatBaseCommand'
 
-export default class Upload extends PhatCommandBase {
+export default class Upload extends PhatBaseCommand {
   static description = 'Upload JS to Phat Contract'
 
   static args = {
-    ...PhatCommandBase.args
+    ...PhatBaseCommand.args
   }
 
   static flags = {
-    ...PhatCommandBase.flags
+    ...PhatBaseCommand.flags
   }
 
   public async run(): Promise<void> {

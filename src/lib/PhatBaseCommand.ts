@@ -63,7 +63,7 @@ export type BrickProfileContract = PinkContractPromise<
   }
 >
 
-export default abstract class PhatCommandBase extends BaseCommand {
+export default abstract class PhatBaseCommand extends BaseCommand {
   static args = {
     script: Args.string({
       description: 'The function script file',
