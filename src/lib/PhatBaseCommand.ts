@@ -240,7 +240,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       pruntimeURL: this.parsedFlags.pruntimeUrl,
     })
     const cert = await signCertificate({ pair })
-    this.action.stop()
+    this.action.succeed(`Connected to the endpoint: ${endpoint}`)
     return [registry.api, registry, cert]
   }
 
