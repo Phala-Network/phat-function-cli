@@ -42,6 +42,7 @@ export interface ParsedFlags {
   readonly accountPassword: string
   readonly coreSettings: string
   readonly pruntimeUrl: string
+  readonly externalAccountId: string
 }
 
 interface ParsedArgs {
@@ -118,6 +119,10 @@ export default abstract class PhatBaseCommand extends BaseCommand {
     }),
     pruntimeUrl: Flags.string({
       description: 'Pruntime URL',
+      required: false,
+    }),
+    externalAccountId: Flags.string({
+      description: 'External Account ID',
       required: false,
     }),
     mode: Flags.custom({
@@ -320,6 +325,9 @@ export default abstract class PhatBaseCommand extends BaseCommand {
     contract: BrickProfileContract,
     cert: CertificateData,
   }) {
+    if (this.parsedFlags.externalAccountId) {
+      return this.parsedFlags.externalAccountId
+    }
     try {
       this.action.start('Querying your external accounts')
       const { output } = await contract.query.getAllEvmAccounts(cert.address, {
