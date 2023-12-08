@@ -1,12 +1,13 @@
 import { lstatSync, readFileSync, existsSync } from 'node:fs'
 import upath from 'upath'
-import { Args, Command, Flags, ux } from '@oclif/core'
-import chalk from 'chalk'
+import { Args, Flags } from '@oclif/core'
 
 import { resolveToAbsolutePath } from '../lib/utils'
 import { runWebpack, printFileSizesAfterBuild } from '../lib/runWebpack'
+import { formatWebpackMessages } from '../lib/formatWebpackMessages'
+import BaseCommand from '../lib/BaseCommand'
 
-export default class Build extends Command {
+export default class Build extends BaseCommand {
   static description = 'Build a production bundle of the function script'
 
   static args = {
@@ -88,7 +89,7 @@ export default class Build extends Command {
     }
 
     if (!flags.silent) {
-      ux.action.start('Creating an optimized build')
+      this.action.start('Creating an optimized build')
     }
 
     try {
@@ -102,12 +103,25 @@ export default class Build extends Command {
         isDev,
       })
       if (!flags.silent) {
-        ux.action.stop()
-        printFileSizesAfterBuild(stats)
+        this.action.stop()
+        const json = stats.toJson({
+          all: false,
+          warnings: true,
+          assets: true,
+          outputPath: true
+        })
+        const messages = formatWebpackMessages(json)
+        if (messages.warnings && messages.warnings.length) {
+          this.action.warn('Compiled with warnings.')
+          this.log(messages.warnings.join('\n\n'))
+        } else {
+          this.action.succeed('Compiled successfully.')
+        }
+        printFileSizesAfterBuild(json)
       }
     } catch (error: any) {
       if (!flags.silent) {
-        ux.action.stop(chalk.red('Failed to compile.\n'))
+        this.action.fail('Failed to compile.')
       }
       return this.error(error)
     }

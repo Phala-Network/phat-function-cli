@@ -6,6 +6,7 @@
     "@phala/pink-env": "^1.0.11"
   },
   "devDependencies": {
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "@phala/fn": "file:../../"
   }
 }

@@ -18,7 +18,6 @@ export default function main() {
     ],
     encodedData,
   )
-  console.info(values)
 
   return values[0]
 }

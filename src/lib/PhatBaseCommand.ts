@@ -4,13 +4,14 @@ import inquirer from 'inquirer'
 import * as dotenv from 'dotenv'
 import chalk from 'chalk'
 import { filesize } from 'filesize'
-import { Command, Args, Flags, ux } from '@oclif/core'
+import { Args, Flags } from '@oclif/core'
 import {
   getClient,
   OnChainRegistry,
   signCertificate,
   unsafeGetAbiFromGitHubRepoByCodeHash,
   PinkContractPromise,
+  PinkContractQuery,
   type CertificateData,
 } from '@phala/sdk'
 import { ApiPromise } from '@polkadot/api'
@@ -18,14 +19,15 @@ import { Abi } from '@polkadot/api-contract'
 import { waitReady } from '@polkadot/wasm-crypto'
 import { Keyring } from '@polkadot/keyring'
 import { type KeyringPair } from '@polkadot/keyring/types'
-import type { Result } from '@polkadot/types'
-import { type AccountId } from '@polkadot/types/interfaces'
+import type { Result, Vec, u64, u8, Text, Struct } from '@polkadot/types'
+import type { AccountId } from '@polkadot/types/interfaces'
 
 import {
   MAX_BUILD_SIZE,
   runWebpack,
-  printFileSizesAfterBuild,
 } from '../lib/runWebpack'
+import { formatWebpackMessages } from '../lib/formatWebpackMessages'
+import BaseCommand from '../lib/BaseCommand'
 
 export interface ParsedFlags {
   readonly build: boolean
@@ -40,13 +42,29 @@ export interface ParsedFlags {
   readonly accountPassword: string
   readonly coreSettings: string
   readonly pruntimeUrl: string
+  readonly externalAccountId: string
 }
 
 interface ParsedArgs {
   readonly script: string
 }
 
-export default abstract class PhatCommandBase extends Command {
+export interface ExternalAccountCodec extends Struct {
+  id: u64
+  address: Vec<u8>
+  rpc: Text
+}
+
+export type BrickProfileContract = PinkContractPromise<
+  {
+    getAllEvmAccounts: PinkContractQuery<
+      [],
+      Result<Vec<ExternalAccountCodec>, any>
+    >
+  }
+>
+
+export default abstract class PhatBaseCommand extends BaseCommand {
   static args = {
     script: Args.string({
       description: 'The function script file',
@@ -83,7 +101,7 @@ export default abstract class PhatCommandBase extends Command {
       required: false,
     }),
     rpc: Flags.string({
-      description: 'Client RPC URL',
+      description: 'EVM RPC URL',
       required: false,
     }),
     brickProfileFactory: Flags.string({
@@ -101,6 +119,10 @@ export default abstract class PhatCommandBase extends Command {
     }),
     pruntimeUrl: Flags.string({
       description: 'Pruntime URL',
+      required: false,
+    }),
+    externalAccountId: Flags.string({
+      description: 'External Account ID',
       required: false,
     }),
     mode: Flags.custom({
@@ -133,6 +155,15 @@ export default abstract class PhatCommandBase extends Command {
 
     this.parsedFlags = flags as never
     this.parsedArgs = args as never
+
+    // temporary hijacking console.warn to ignore wrong printing
+    // see: https://github.com/polkadot-js/api/issues/5760
+    console.warn = function (...args: any[]) {
+      if (args.length && args[0] === 'Unable to map [u8; 32] to a lookup index') {
+        return
+      }
+      console.log(...args)
+    }
   }
 
   getEndpoint() {
@@ -153,8 +184,6 @@ export default abstract class PhatCommandBase extends Command {
     if (!brickProfileFactoryContractId) {
       if (endpoint === 'wss://poc6.phala.network/ws') {
         brickProfileFactoryContractId = '0x4a7861f257568a989a9c24db60981efb745d134a138203a219da051337428b49'
-      } else if (endpoint === 'wss://poc5.phala.network/ws') {
-        brickProfileFactoryContractId = '0x489bb4fa807bbe0f877ed46be8646867a8d16ec58add141977c4bd19b0237091'
       } else if (endpoint === 'wss://api.phala.network/ws') {
         brickProfileFactoryContractId = '0xb59bcc4ea352f3d878874d8f496fb093bdf362fa59d6e577c075f41cd7c84924'
       } else {
@@ -196,7 +225,8 @@ export default abstract class PhatCommandBase extends Command {
       await brickProfileFactory.query.getUserProfileAddress<Result<AccountId, any>>(pair.address, { cert })
 
     if (!brickProfileAddressQuery.isOk || !brickProfileAddressQuery.asOk.isOk) {
-      this.error('You need create Brick Profile before continue.')
+      this.action.fail('You need to create the Brick Profile before continuing.\nPlease go to: https://bricks.phala.network/')
+      this.exit(1)
     }
 
     const brickProfileContractId = brickProfileAddressQuery.asOk.asOk.toHex()
@@ -210,11 +240,17 @@ export default abstract class PhatCommandBase extends Command {
     endpoint: string
     pair: KeyringPair
   }): Promise<[ApiPromise, OnChainRegistry, CertificateData]> {
+    this.action.start(`Connecting to the endpoint: ${endpoint}`)
     const registry = await getClient({
       transport: endpoint,
       pruntimeURL: this.parsedFlags.pruntimeUrl,
     })
     const cert = await signCertificate({ pair })
+    this.action.succeed(`Connected to the endpoint: ${endpoint}`)
+    const type = await registry.api.rpc.system.chainType()
+    if (type.isDevelopment || type.isLocal) {
+      this.log(chalk.yellow(`\nYou are connecting to a testnet.\n`))
+    }
     return [registry.api, registry, cert]
   }
 
@@ -232,7 +268,7 @@ export default abstract class PhatCommandBase extends Command {
 
     const directory = process.cwd()
     try {
-      ux.action.start('Creating an optimized build')
+      this.action.start('Creating an optimized build')
       const stats = await runWebpack({
         clean: false,
         projectDir: directory,
@@ -243,15 +279,30 @@ export default abstract class PhatCommandBase extends Command {
         outputDir: upath.resolve(directory, 'dist'),
         isDev: false,
       })
-      ux.action.stop()
-      const buildAssets = printFileSizesAfterBuild(stats)
+      const json = stats.toJson({
+        all: false,
+        warnings: true,
+        assets: true,
+        outputPath: true
+      })
+      const messages = formatWebpackMessages(json)
 
-      if (!buildAssets || !buildAssets.length) {
-        return this.error('Build assets not found')
+      if (messages.warnings && messages.warnings.length) {
+        this.action.warn('Compiled with warnings.')
+        this.log(messages.warnings.join('\n\n'))
+      } else {
+        this.action.succeed('Compiled successfully.')
       }
 
-      if (buildAssets[0].size > MAX_BUILD_SIZE) {
-        this.error(
+      if (!json.assets || !json.assets.length) {
+        throw new Error('Build assets not found.')
+      }
+
+      const assetPath = upath.join(json.outputPath ?? '', json.assets[0].name)
+      const { size } = fs.statSync(assetPath)
+
+      if (size > MAX_BUILD_SIZE) {
+        throw new Error(
           `The file size exceeds the limit of ${filesize(MAX_BUILD_SIZE, {
             base: 2,
             standard: 'jedec',
@@ -259,12 +310,74 @@ export default abstract class PhatCommandBase extends Command {
         )
       }
 
-      return upath.join(buildAssets[0].outputPath, buildAssets[0].name)
-
-    } catch (error: any) {
-      ux.action.stop(chalk.red('Failed to compile.\n'))
-      return this.error(error)
+      return assetPath
+    } catch (error) {
+      this.action.fail('Failed to compile.')
+      return this.error(error as Error)
+    } finally {
+      this.action.stop()
     }
+  }
+
+  async promptEvmAccountId({
+    contract,
+    cert,
+  }: {
+    contract: BrickProfileContract,
+    cert: CertificateData,
+  }) {
+    if (this.parsedFlags.externalAccountId) {
+      return this.parsedFlags.externalAccountId
+    }
+    try {
+      this.action.start('Querying your external accounts')
+      const { output } = await contract.query.getAllEvmAccounts(cert.address, {
+        cert,
+      })
+
+      if (output.isErr) {
+        throw new Error(output.asErr.toString())
+      }
+      if (output.asOk.isErr) {
+        throw new Error(output.asOk.asErr.toString())
+      }
+      const accounts = output.asOk.asOk.map((i) => {
+        const obj = i.toJSON()
+        return {
+          id: obj.id,
+          address: obj.address,
+          rpcEndpoint: obj.rpc,
+        }
+      })
+      this.action.stop()
+      const { account } = await inquirer.prompt({
+        name: 'account',
+        message: 'Please select an external account:',
+        type: 'list',
+        choices: accounts.map(account => ({
+          name: `[${account.id}] ${account.address}. ${chalk.dim(account.rpcEndpoint)}`,
+          value: account.id,
+        })),
+      })
+      return account
+    } catch (error) {
+      this.action.fail('Failed to query your external accounts.')
+      return this.error(error as Error)
+    }
+  }
+
+  async promptProjectName(
+    defaultName: string
+  ): Promise<string> {
+    const { name } = await inquirer.prompt([
+      {
+        name: 'name',
+        type: 'input',
+        message: 'Please enter your project name',
+        default: defaultName,
+      },
+    ])
+    return name
   }
 
   async promptRpc(

@@ -1,22 +1,22 @@
 import fs from 'node:fs'
-import { ux } from '@oclif/core'
 import type { u16 } from '@polkadot/types'
 import {
   PinkContractPromise,
   PinkBlueprintPromise,
 } from '@phala/sdk'
 
-import PhatCommandBase from '../lib/PhatCommandBase'
+import PhatBaseCommand from '../lib/PhatBaseCommand'
+import type { BrickProfileContract } from '../lib/PhatBaseCommand'
 
-export default class Upload extends PhatCommandBase {
+export default class Upload extends PhatBaseCommand {
   static description = 'Upload JS to Phat Contract'
 
   static args = {
-    ...PhatCommandBase.args
+    ...PhatBaseCommand.args
   }
 
   static flags = {
-    ...PhatCommandBase.flags
+    ...PhatBaseCommand.flags
   }
 
   public async run(): Promise<void> {
@@ -32,15 +32,13 @@ export default class Upload extends PhatCommandBase {
 
     // Step 1: Connect to the endpoint.
     const endpoint = this.getEndpoint()
-    ux.action.start(`Connecting to the endpoint: ${endpoint}`)
     const [apiPromise, registry, cert] = await this.connect({
       endpoint,
       pair,
     })
-    ux.action.stop()
 
     // Step 2: Query the brick profile contract id.
-    ux.action.start('Querying your Brick Profile contract ID')
+    this.action.start('Querying your Brick Profile contract ID')
     const brickProfileContractId = await this.getBrickProfileContractId({
       endpoint,
       registry,
@@ -48,11 +46,10 @@ export default class Upload extends PhatCommandBase {
       pair,
       cert,
     })
-    ux.action.stop()
-    this.log(`Your Brick Profile contract ID: ${brickProfileContractId}`)
+    this.action.succeed(`Your Brick Profile contract ID: ${brickProfileContractId}`)
 
     // Step 3: Instantiating the ActionOffchainRollup contract.
-    ux.action.start('Instantiating the ActionOffchainRollup contract')
+    this.action.start('Instantiating the ActionOffchainRollup contract')
     const brickProfileAbi = await this.loadAbiByContractId(
       registry,
       brickProfileContractId
@@ -60,7 +57,7 @@ export default class Upload extends PhatCommandBase {
     const brickProfileContractKey = await registry.getContractKeyOrFail(
       brickProfileContractId
     )
-    const brickProfile = new PinkContractPromise(
+    const brickProfile: BrickProfileContract = new PinkContractPromise(
       apiPromise,
       registry,
       brickProfileAbi,
@@ -85,14 +82,19 @@ export default class Upload extends PhatCommandBase {
     )
     await result.waitFinalized()
     const contractPromise = result.contract
-    ux.action.stop()
-    this.log(
-      'The ActionOffchainRollup contract has been instantiated:',
-      contractPromise.address.toHex()
+    this.action.succeed(
+      `The ActionOffchainRollup contract has been instantiated: ${contractPromise.address.toHex()}`,
     )
 
-    // Step 4: Setting up the actions.
-    ux.action.start('Setting up the actions')
+    // Step 4: Select an external account.
+    const externalAccountId = await this.promptEvmAccountId({
+      contract: brickProfile,
+      cert,
+    })
+
+
+    // Step 5: Checking your settings.
+    this.action.start('Checking your settings')
     const { output: attestorQuery } =
       await contractPromise.query.getAttestAddress(cert.address, { cert })
     const attestor = attestorQuery.asOk.toHex()
@@ -122,17 +124,20 @@ export default class Upload extends PhatCommandBase {
       { cert }
     )
     const num = numberQuery.asOk.toNumber()
+    this.action.succeed()
 
-    const externalAccountId = 0
+    const projectName = await this.promptProjectName(`My Phat Contract ${numberQuery.asOk.toNumber()}`)
+
+    // Step 6: Setting up the actions.
+    this.action.start('Setting up the actions')
     const result2 = await brickProfile.send.addWorkflowAndAuthorize(
       { cert, address: pair.address, pair },
-      `My Phat Contract ${numberQuery.asOk.toNumber()}`,
+      projectName,
       JSON.stringify(actions),
       externalAccountId
     )
     await result2.waitFinalized()
-    ux.action.stop()
-    this.log(
+    this.action.succeed(
       `🎉 Your workflow has been added, you can check it out here: https://bricks.phala.network/workflows/${brickProfileContractId}/${num}`
     )
     this.log('Your Attestor address:', attestor)
