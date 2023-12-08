@@ -6,6 +6,7 @@
     "@scale-codec/core": "^2.0.1"
   },
   "devDependencies": {
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "@phala/fn": "file:../../"
   }
 }

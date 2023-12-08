@@ -6,6 +6,7 @@
     "viem": "^1.18.0"
   },
   "devDependencies": {
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "@phala/fn": "file:../../"
   }
 }
