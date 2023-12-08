@@ -225,7 +225,8 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       await brickProfileFactory.query.getUserProfileAddress<Result<AccountId, any>>(pair.address, { cert })
 
     if (!brickProfileAddressQuery.isOk || !brickProfileAddressQuery.asOk.isOk) {
-      this.error('You need create Brick Profile before continue.')
+      this.action.fail('You need to create the Brick Profile before continuing.\nPlease go to: https://bricks.phala.network/')
+      this.exit(1)
     }
 
     const brickProfileContractId = brickProfileAddressQuery.asOk.asOk.toHex()
