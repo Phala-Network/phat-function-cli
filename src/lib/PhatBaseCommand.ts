@@ -100,7 +100,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       required: false,
     }),
     rpc: Flags.string({
-      description: 'Client RPC URL',
+      description: 'EVM RPC URL',
       required: false,
     }),
     brickProfileFactory: Flags.string({
@@ -241,6 +241,10 @@ export default abstract class PhatBaseCommand extends BaseCommand {
     })
     const cert = await signCertificate({ pair })
     this.action.succeed(`Connected to the endpoint: ${endpoint}`)
+    const type = await registry.api.rpc.system.chainType()
+    if (type.isDevelopment || type.isLocal) {
+      this.log(chalk.yellow(`\nYou are connecting to a testnet.\n`))
+    }
     return [registry.api, registry, cert]
   }
 
@@ -342,7 +346,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
         message: 'Please select an external account:',
         type: 'list',
         choices: accounts.map(account => ({
-          name: `${account.address}. ${chalk.dim(account.rpcEndpoint)}`,
+          name: `[${account.id}] ${account.address}. ${chalk.dim(account.rpcEndpoint)}`,
           value: account.id,
         })),
       })
