@@ -381,7 +381,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
   }
 
   async promptRpc(
-    message = 'Please enter your client RPC URL'
+    message = 'Please enter your EVM RPC URL'
   ): Promise<string> {
     const { rpc } = await inquirer.prompt([
       {
