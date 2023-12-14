@@ -105,7 +105,7 @@ export default class Init extends Command {
 
         choices: Object.entries(TEMPLATE_ALIASES).map(([name, { description }]) => {
           return {
-            name: `${name}. ${chalk.dim(description)}`,
+            name: `${name}: ${chalk.dim(description)}`,
             value: name,
           }
         }),
