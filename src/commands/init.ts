@@ -9,11 +9,23 @@ import simpleGit from 'simple-git'
 const TEMPLATE_ALIASES: Record<string, { url: string; description: string }> = {
   'phat-contract-starter-kit': {
     url: 'https://github.com/Phala-Network/phat-contract-starter-kit',
-    description: 'The Phat Contract Starter Kit',
+    description: 'Send data from any API to your smart contract with Javascript.',
   },
   'lensapi-oracle-consumer-contract': {
     url: 'https://github.com/Phala-Network/lensapi-oracle-consumer-contract',
-    description: 'Polygon Consumer Contract for LensAPI Oracle',
+    description: 'Send data from Lens API to your smart contract to empower your Web3 Social dApp.',
+  },
+  'vrf-oracle': {
+    url: 'https://github.com/Phala-Network/template-vrf',
+    description: 'TEE-guarded Verifiable Random Function template to bring randomness to your smart contract.',
+  },
+  'airstack-phat-contract': {
+    url: 'https://github.com/Phala-Network/airstack-phat-contract',
+    description: 'Request an account’s data from Airstack’s API to compute trust score and send to your Web3 dApp on-chain.',
+  },
+  'thegraph-phat-contract': {
+    url: 'https://github.com/Phala-Network/the-graph-phat-contract',
+    description: 'Connect your subgraphs from The Graph to your on-chain dApps via Phat Contract.',
   },
 }
 
