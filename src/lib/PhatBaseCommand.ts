@@ -13,6 +13,7 @@ import {
   PinkContractPromise,
   PinkContractQuery,
   type CertificateData,
+  type PinkContractTx,
 } from '@phala/sdk'
 import { ApiPromise } from '@polkadot/api'
 import { Abi } from '@polkadot/api-contract'
@@ -61,6 +62,16 @@ export type BrickProfileContract = PinkContractPromise<
       [],
       Result<Vec<ExternalAccountCodec>, any>
     >
+    workflowCount: PinkContractQuery<[], u64>
+    externalAccountCount: PinkContractQuery<[], u64>
+    getEvmAccountAddress: PinkContractQuery<
+      [number | u64],
+      Result<AccountId, any>
+    >
+
+  },
+  {
+    generateEvmAccount: PinkContractTx<[string | Text]>
   }
 >
 
