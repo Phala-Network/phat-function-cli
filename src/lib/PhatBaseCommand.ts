@@ -21,7 +21,7 @@ import { waitReady } from '@polkadot/wasm-crypto'
 import { Keyring } from '@polkadot/keyring'
 import { type KeyringPair } from '@polkadot/keyring/types'
 import type { Result, Vec, u64, u8, Text, Struct } from '@polkadot/types'
-import type { AccountId } from '@polkadot/types/interfaces'
+import type { AccountId, ChainType, Hash } from '@polkadot/types/interfaces'
 
 import {
   MAX_BUILD_SIZE,
@@ -44,6 +44,7 @@ export interface ParsedFlags {
   readonly coreSettings: string
   readonly pruntimeUrl: string
   readonly externalAccountId: string
+  readonly jsRunner: string
 }
 
 interface ParsedArgs {
@@ -56,8 +57,24 @@ export interface ExternalAccountCodec extends Struct {
   rpc: Text
 }
 
+export type BrickProfileFactoryContract = PinkContractPromise<
+  {
+    version: PinkContractQuery<[], u64[]>
+    owner: PinkContractQuery<[], AccountId>
+    userCount: PinkContractQuery<[], u64>
+    profileCodeHash: PinkContractQuery<[], Hash>
+    getUserProfileAddress: PinkContractQuery<[], Result<AccountId, any>>
+  },
+  {
+    setProfileCodeHash: PinkContractTx<[string]>
+    createUserProfile: PinkContractTx<[]>
+  }
+>
+
+
 export type BrickProfileContract = PinkContractPromise<
   {
+    getJsRunner: PinkContractQuery<[], Result<AccountId, any>>
     getAllEvmAccounts: PinkContractQuery<
       [],
       Result<Vec<ExternalAccountCodec>, any>
@@ -68,7 +85,6 @@ export type BrickProfileContract = PinkContractPromise<
       [number | u64],
       Result<AccountId, any>
     >
-
   },
   {
     generateEvmAccount: PinkContractTx<[string | Text]>
@@ -116,7 +132,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       required: false,
     }),
     brickProfileFactory: Flags.string({
-      description: 'Brick profile factory contract address',
+      description: 'Brick profile factory contract id',
       required: false,
       default: '',
     }),
@@ -143,6 +159,11 @@ export default abstract class PhatBaseCommand extends BaseCommand {
     build: Flags.boolean({
       char: 'b',
       default: true,
+    }),
+    jsRunner: Flags.string({
+      description: 'JS runner contract id',
+      required: false,
+      default: '',
     }),
   }
 
@@ -204,6 +225,20 @@ export default abstract class PhatBaseCommand extends BaseCommand {
     return brickProfileFactoryContractId
   }
 
+  async getJsRunnerContractId(endpoint: string) {
+    let jsRunnerContractId = this.parsedFlags.jsRunner
+    if (!jsRunnerContractId) {
+      if (endpoint === 'wss://poc6.phala.network/ws') {
+        jsRunnerContractId = '0x15fd4cc6e96b1637d46bd896f586e5de7c6835d8922d9d43f3c1dd5b84883d79'
+      } else if (endpoint === 'wss://api.phala.network/ws') {
+        jsRunnerContractId = '0xd0b2ee3ac67b363734c5105a275b5de964ecc4a304d98c2cc49a8d417331ade2'
+      } else {
+        jsRunnerContractId = await this.promptJsRunner()
+      }
+    }
+    return jsRunnerContractId
+  }
+
   async getBrickProfileContractId({
     endpoint,
     registry,
@@ -250,7 +285,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
   }: {
     endpoint: string
     pair: KeyringPair
-  }): Promise<[ApiPromise, OnChainRegistry, CertificateData]> {
+  }): Promise<[ApiPromise, OnChainRegistry, CertificateData, ChainType]> {
     this.action.start(`Connecting to the endpoint: ${endpoint}`)
     const registry = await getClient({
       transport: endpoint,
@@ -262,7 +297,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
     if (type.isDevelopment || type.isLocal) {
       this.log(chalk.yellow(`\nYou are connecting to a testnet.\n`))
     }
-    return [registry.api, registry, cert]
+    return [registry.api, registry, cert, type]
   }
 
   async getRollupAbi() {
@@ -428,6 +463,19 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       },
     ])
     return brickProfileFactory
+  }
+
+  async promptJsRunner(
+    message = 'Please enter the js runner contract ID'
+  ): Promise<string> {
+    const { jsRunner } = await inquirer.prompt([
+      {
+        name: 'jsRunner',
+        type: 'input',
+        message,
+      },
+    ])
+    return jsRunner
   }
 
   async getDecodedPair({ suri, accountFilePath, accountPassword }: { suri?: string, accountFilePath?: string, accountPassword?: string }): Promise<KeyringPair> {

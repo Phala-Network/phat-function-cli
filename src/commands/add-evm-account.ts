@@ -23,7 +23,6 @@ export default class AddEvmAccount extends PhatBaseCommand {
     const { evmRpcEndpoint } = this.parsedFlags as ParsedFlags & {
       evmRpcEndpoint: string
     }
-    console.info(evmRpcEndpoint)
     const pair = await this.getDecodedPair({
       suri: this.parsedFlags.suri || process.env.POLKADOT_WALLET_SURI,
       accountFilePath: this.parsedFlags.accountFilePath || process.env.POLKADOT_WALLET_ACCOUNT_FILE,
