@@ -1,8 +1,7 @@
 import { Flags } from '@oclif/core'
-import { PinkContractPromise } from '@phala/sdk'
+import { getContract } from '@phala/sdk'
 
 import PhatBaseCommand, { type ParsedFlags, type BrickProfileContract } from '../lib/PhatBaseCommand'
-import { bindWaitPRuntimeFinalized } from '../lib/utils'
 
 export default class AddEvmAccount extends PhatBaseCommand {
   static description = 'Add EVM accounts'
@@ -54,16 +53,11 @@ export default class AddEvmAccount extends PhatBaseCommand {
         registry,
         brickProfileContractId
       )
-      const brickProfileContractKey = await registry.getContractKeyOrFail(
-        brickProfileContractId
-      )
-      const brickProfile: BrickProfileContract = new PinkContractPromise(
-        apiPromise,
-        registry,
-        brickProfileAbi,
-        brickProfileContractId,
-        brickProfileContractKey
-      )
+      const brickProfile = await getContract({
+        client: registry,
+        contractId: brickProfileContractId,
+        abi: brickProfileAbi,
+      }) as BrickProfileContract
       const { output } = await brickProfile.query.externalAccountCount(cert.address, {
         cert,
       })
@@ -71,19 +65,18 @@ export default class AddEvmAccount extends PhatBaseCommand {
         throw new Error(output.asErr.toString())
       }
       const externalAccountCount = output.asOk.toNumber()
-      const waitForPRuntimeFinalized = bindWaitPRuntimeFinalized(registry)
-      await waitForPRuntimeFinalized(
-        brickProfile.send.generateEvmAccount(
-          { cert, address: pair.address, pair },
-          evmRpcEndpoint
-        ),
-        async function () {
-          const { output } = await brickProfile.query.externalAccountCount(cert.address, {
-            cert,
-          })
-          return output.isOk && output.asOk.toNumber() === externalAccountCount + 1
-        }
+
+      const result = await brickProfile.send.generateEvmAccount(
+        { cert, address: pair.address, pair },
+        evmRpcEndpoint
       )
+      await result.waitFinalized(async () => {
+        const { output } = await brickProfile.query.externalAccountCount(cert.address, {
+          cert,
+        })
+        return output.isOk && output.asOk.toNumber() === externalAccountCount + 1
+      })
+
       const { output: evmAccountAddressOutput } = await brickProfile.query.getEvmAccountAddress(
         cert.address,
         { cert },
