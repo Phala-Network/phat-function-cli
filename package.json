@@ -38,6 +38,7 @@
     "typescript": "^5.2.2",
     "undici": "^5.27.0",
     "upath": "^2.0.1",
+    "viem": "^1.20.3",
     "webpack": "^5.88.2",
     "webpack-merge": "^5.9.0",
     "webpack-virtual-modules": "^0.5.0"
