@@ -22,6 +22,7 @@ import { Keyring } from '@polkadot/keyring'
 import { type KeyringPair } from '@polkadot/keyring/types'
 import type { Result, Vec, u64, u8, Text, Struct } from '@polkadot/types'
 import type { AccountId, ChainType, Hash } from '@polkadot/types/interfaces'
+import { createPublicClient, http } from 'viem'
 
 import {
   MAX_BUILD_SIZE,
@@ -614,6 +615,20 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       codeHash && codeHash.indexOf('0x') !== 0 ? `0x${codeHash}` : codeHash
     const abi = await this.loadAbiByCodeHash(codeHashWithPrefix)
     return abi
+  }
+
+  async verifyRpcEndpoint(endpoint: string) {
+    try {
+      this.action.start(`Verifying the RPC endpoint: ${endpoint}`)
+      const client = createPublicClient({
+        transport: http(endpoint)
+      })
+      await client.getChainId()
+      this.action.succeed()
+    } catch (error) {
+      this.action.fail('Failed to verify the RPC endpoint.')
+      return this.error(error as Error)
+    }
   }
 
 }

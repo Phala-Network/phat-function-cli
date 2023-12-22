@@ -1,6 +1,5 @@
 import { Flags } from '@oclif/core'
 import { getContract } from '@phala/sdk'
-import { createPublicClient, http } from 'viem'
 
 import PhatBaseCommand, { type ParsedFlags, type BrickProfileContract } from '../lib/PhatBaseCommand'
 
@@ -25,17 +24,7 @@ export default class AddEvmAccount extends PhatBaseCommand {
     }
 
     // Verify the RPC endpoint
-    try {
-      this.action.start(`Verifying the RPC endpoint: ${evmRpcEndpoint}`)
-      const client = createPublicClient({
-        transport: http(evmRpcEndpoint)
-      })
-      await client.getChainId()
-      this.action.succeed()
-    } catch (error) {
-      this.action.fail('Failed to verify the RPC endpoint.')
-      return this.error(error as Error)
-    }
+    await this.verifyRpcEndpoint(evmRpcEndpoint)
 
     const pair = await this.getDecodedPair({
       suri: this.parsedFlags.suri || process.env.POLKADOT_WALLET_SURI,

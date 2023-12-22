@@ -1,8 +1,9 @@
+import { Flags } from '@oclif/core'
 import type { Struct, u128 } from '@polkadot/types'
 import { PinkContractPromise, OnChainRegistry, type CertificateData } from '@phala/sdk'
 import { type KeyringPair } from '@polkadot/keyring/types'
 
-import PhatBaseCommand, { type BrickProfileFactoryContract, type BrickProfileContract } from '../lib/PhatBaseCommand'
+import PhatBaseCommand, { type ParsedFlags, type BrickProfileFactoryContract, type BrickProfileContract } from '../lib/PhatBaseCommand'
 import { bindWaitPRuntimeFinalized } from '../lib/utils'
 
 interface PartialAccountQueryResult extends Struct {
@@ -19,10 +20,22 @@ export default class CreateBrickProfile extends PhatBaseCommand {
   }
 
   static flags = {
-    ...PhatBaseCommand.flags
+    ...PhatBaseCommand.flags,
+    evmRpcEndpoint: Flags.string({
+      description: 'EVM RPC endpoint',
+      required: false,
+    }),
   }
 
   public async run(): Promise<void> {
+    const { evmRpcEndpoint } = this.parsedFlags as ParsedFlags & {
+      evmRpcEndpoint: string
+    }
+
+    if (evmRpcEndpoint) {
+      await this.verifyRpcEndpoint(evmRpcEndpoint)
+    }
+
     const pair = await this.getDecodedPair({
       suri: this.parsedFlags.suri || process.env.POLKADOT_WALLET_SURI,
       accountFilePath: this.parsedFlags.accountFilePath || process.env.POLKADOT_WALLET_ACCOUNT_FILE,
@@ -127,7 +140,7 @@ export default class CreateBrickProfile extends PhatBaseCommand {
           registry,
           contract: brickProfile,
           externalAccountCount,
-          evmRpcEndpoint: type.isDevelopment || type.isLocal ? 'https://polygon-mumbai.g.alchemy.com/v2/YWlujLKt0nSn5GrgEpGCUA0C_wKV1sVQ' : 'https://polygon-mainnet.g.alchemy.com/v2/W1kyx17tiFQFT2b19mGOqppx90BLHp0a',
+          evmRpcEndpoint: evmRpcEndpoint || (type.isDevelopment || type.isLocal) ? 'https://polygon-mumbai.g.alchemy.com/v2/YWlujLKt0nSn5GrgEpGCUA0C_wKV1sVQ' : 'https://polygon-mainnet.g.alchemy.com/v2/W1kyx17tiFQFT2b19mGOqppx90BLHp0a',
           pair,
           cert
         })
