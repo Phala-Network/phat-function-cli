@@ -1,9 +1,7 @@
 import fs from 'node:fs'
 import { Flags } from '@oclif/core'
 import type { Result, Struct, u16, Text, Bool } from '@polkadot/types'
-import {
-  PinkContractPromise,
-} from '@phala/sdk'
+import { PinkContractPromise } from '@phala/sdk'
 import inquirer from 'inquirer'
 
 import PhatBaseCommand, { type ParsedFlags } from '../lib/PhatBaseCommand'
