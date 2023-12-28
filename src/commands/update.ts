@@ -1,10 +1,10 @@
 import fs from 'node:fs'
 import { Flags } from '@oclif/core'
 import type { Result, Struct, u16, Text, Bool } from '@polkadot/types'
-import { PinkContractPromise } from '@phala/sdk'
+import { getContract } from '@phala/sdk'
 import inquirer from 'inquirer'
 
-import PhatBaseCommand, { type ParsedFlags } from '../lib/PhatBaseCommand'
+import PhatBaseCommand, { type ParsedFlags, type BrickProfileContract, type ActionOffChainRollupContract } from '../lib/PhatBaseCommand'
 
 interface WorkflowCodec extends Struct {
   id: u16
@@ -30,51 +30,37 @@ export default class Update extends PhatBaseCommand {
 
   public async run(): Promise<void> {
     const workflowId = await this.getWorkflowId()
-    const pair = await this.getDecodedPair({
-      suri: this.parsedFlags.suri || process.env.POLKADOT_WALLET_SURI,
-      accountFilePath: this.parsedFlags.accountFilePath || process.env.POLKADOT_WALLET_ACCOUNT_FILE,
-      accountPassword: this.parsedFlags.accountPassword || process.env.POLKADOT_WALLET_ACCOUNT_PASSWORD,
-    })
-
     const buildScriptPath = await this.buildOrGetScriptPath()
 
-    // Step 1: Connect to the endpoint.
+    // connect to the endpoint
     const endpoint = this.getEndpoint()
-    const [apiPromise, registry, cert] = await this.connect({
-      endpoint,
-      pair,
-    })
+    const [apiPromise, registry] = await this.connect({ endpoint })
+    const provider = await this.getProvider({ apiPromise })
 
-    // Step 2: Query the brick profile contract id.
+    // query the brick profile contract id
     this.action.start('Querying your Brick Profile contract ID')
     const brickProfileContractId = await this.getBrickProfileContractId({
       endpoint,
       registry,
-      apiPromise,
-      pair,
-      cert,
+      provider,
     })
     this.action.succeed(`Your Brick Profile contract ID: ${brickProfileContractId}`)
 
-    // Step 3: Check current user workflow settings.
+    // check current user workflow settings
     this.action.start('Checking your workflow settings')
     const brickProfileAbi = await this.loadAbiByContractId(
       registry,
       brickProfileContractId
     )
-    const brickProfileContractKey = await registry.getContractKeyOrFail(
-      brickProfileContractId
-    )
-    const brickProfile = new PinkContractPromise(
-      apiPromise,
-      registry,
-      brickProfileAbi,
-      brickProfileContractId,
-      brickProfileContractKey
-    )
-    const { output: workflowQuery } = await brickProfile.query.getWorkflow<
-      Result<WorkflowCodec, any>
-    >(pair.address, { cert }, workflowId)
+    const brickProfile = await getContract({
+      client: registry,
+      contractId: brickProfileContractId,
+      abi: brickProfileAbi,
+      provider,
+    }) as BrickProfileContract
+    const { output: workflowQuery } = await brickProfile.q.getWorkflow<Result<WorkflowCodec, any>>({
+      args: [workflowId]
+    })
     if (!workflowQuery.isOk || !workflowQuery.asOk.isOk) {
       this.error('Workflow not found.')
     }
@@ -92,24 +78,19 @@ export default class Update extends PhatBaseCommand {
     // Step 4: Update the JS.
     this.action.start('Updating')
     const actionOffchainRollupContractId = actions[0].config.callee
-    const rollupContractKey = await registry.getContractKeyOrFail(
-      actionOffchainRollupContractId
-    )
-    const rollupContract = new PinkContractPromise(
-      apiPromise,
-      registry,
-      rollupAbi,
-      actionOffchainRollupContractId,
-      rollupContractKey
-    )
-    await rollupContract.send.configCoreScript(
-      { cert, address: pair.address, pair },
-      fs.readFileSync(buildScriptPath, 'utf8'),
-    )
+    const rollupContract = await getContract({
+      client: registry,
+      contractId: actionOffchainRollupContractId,
+      abi: rollupAbi,
+      provider,
+    }) as ActionOffChainRollupContract
+    await rollupContract.exec.configCoreScript({
+      args: [fs.readFileSync(buildScriptPath, 'utf8')]
+    })
     this.action.succeed(
       `The JavaScript code for workflow ${workflowId} has been updated.`
     )
-    this.exit(0)
+    process.exit(0)
   }
 
   async getWorkflowId() {

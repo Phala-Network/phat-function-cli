@@ -1,10 +1,9 @@
 import { Flags } from '@oclif/core'
-import type { Struct, u128 } from '@polkadot/types'
-import { PinkContractPromise, OnChainRegistry, type CertificateData } from '@phala/sdk'
-import { type KeyringPair } from '@polkadot/keyring/types'
+import type { Struct, u128, u64, Result } from '@polkadot/types'
+import { getContract } from '@phala/sdk'
+import type { AccountId } from '@polkadot/types/interfaces'
 
 import PhatBaseCommand, { type ParsedFlags, type BrickProfileFactoryContract, type BrickProfileContract } from '../lib/PhatBaseCommand'
-import { bindWaitPRuntimeFinalized } from '../lib/utils'
 
 interface PartialAccountQueryResult extends Struct {
   data: {
@@ -36,70 +35,61 @@ export default class CreateBrickProfile extends PhatBaseCommand {
       await this.verifyRpcEndpoint(evmRpcEndpoint)
     }
 
-    const pair = await this.getDecodedPair({
-      suri: this.parsedFlags.suri || process.env.POLKADOT_WALLET_SURI,
-      accountFilePath: this.parsedFlags.accountFilePath || process.env.POLKADOT_WALLET_ACCOUNT_FILE,
-      accountPassword: this.parsedFlags.accountPassword || process.env.POLKADOT_WALLET_ACCOUNT_PASSWORD,
-    })
-
-    // Step 1: Connect to the endpoint.
+    // connect to the endpoint
     const endpoint = this.getEndpoint()
-    const [apiPromise, registry, cert, type] = await this.connect({
-      endpoint,
-      pair,
-    })
+    const [apiPromise, registry, type] = await this.connect({ endpoint })
+    const provider = await this.getProvider({ apiPromise })
 
-    // Step 2: Check balance
-    const account = await apiPromise.query.system.account<PartialAccountQueryResult>(cert.address)
-    const balance = Number(account.data.free.toBigInt() / BigInt(1e12))
+    // check if brick profile already exists
+    this.action.start('Checking your brick profile contract ID')
+    const brickProfileFactoryContractId = await this.getBrickProfileFactoryContractId(endpoint)
+    const brickProfileFactoryAbi = await this.loadAbiByContractId(
+      registry,
+      brickProfileFactoryContractId
+    )
+    const brickProfileFactory = await getContract({
+      client: registry,
+      contractId: brickProfileFactoryContractId,
+      abi: brickProfileFactoryAbi,
+      provider,
+    }) as BrickProfileFactoryContract
+    const { output } = await brickProfileFactory.q.getUserProfileAddress<Result<AccountId, any>>()
+    if (output.isOk && output.asOk.isOk) {
+      this.action.succeed(`Your Brick Profile already exists, contract ID: ${output.asOk.asOk.toHex()}`)
+      process.exit(0)
+    }
+    this.action.succeed('Your brick profile does not exist')
+
+    // check balance
+    this.action.start('Checking account balance')
+    const accountQueryResult = await registry.api.query.system.account<PartialAccountQueryResult>(provider.address)
+    const balance = Number(accountQueryResult.data.free.toBigInt() / BigInt(1e12))
     if (balance < 50) {
       this.action.fail(`Insufficient on-chain balance, please go to ${type.isDevelopment || type.isLocal ? 'https://phala.network/faucet' : 'https://docs.phala.network/introduction/basic-guidance/get-pha-and-transfer'} to get more than 50 PHA before continuing the process.`)
-      this.exit(0)
+      process.exit(0)
     }
+    this.action.succeed(`Account balance: ${balance} PHA`)
+
     try {
       this.action.start('Creating your brick profile')
-      const brickProfileFactoryContractId = await this.getBrickProfileFactoryContractId(endpoint)
-      const brickProfileFactoryAbi = await this.loadAbiByContractId(
-        registry,
-        brickProfileFactoryContractId
-      )
-      const brickProfileFactoryContractKey = await registry.getContractKeyOrFail(
-        brickProfileFactoryContractId
-      )
-      const brickProfileFactory: BrickProfileFactoryContract = new PinkContractPromise(
-        apiPromise,
-        registry,
-        brickProfileFactoryAbi,
-        brickProfileFactoryContractId,
-        brickProfileFactoryContractKey
-      )
-      const waitForPRuntimeFinalized = bindWaitPRuntimeFinalized(registry)
-      // Step 3: create user profile
-      await waitForPRuntimeFinalized(
-        brickProfileFactory.send.createUserProfile(
-          { cert, address: pair.address, pair },
-        ),
-        async function () {
-          const { output } = await brickProfileFactory.query.getUserProfileAddress(cert.address, {
-            cert,
-          })
-          const created = output && output.isOk && output.asOk.isOk
-          if (!created) {
-            return false
-          }
-          const result = await registry.getContractKey(
-            output.asOk.asOk.toHex()
-          )
-          if (result) {
-            return true
-          }
+      const result = await brickProfileFactory.exec.createUserProfile()
+      await result.waitFinalized(async () => {
+        const { output } = await brickProfileFactory.q.getUserProfileAddress<Result<AccountId, any>>()
+        const created = output && output.isOk && output.asOk.isOk
+        if (!created) {
           return false
         }
-      )
-      // Step 4: query profile
-      const { output } = await brickProfileFactory.query.getUserProfileAddress(cert.address, {
-        cert,
+        const result = await registry.getContractKey(
+          output.asOk.asOk.toHex()
+        )
+        if (result) {
+          return true
+        }
+        return false
       })
+
+      // query profile
+      const { output } = await brickProfileFactory.q.getUserProfileAddress<Result<AccountId, any>>()
       if (output.isErr) {
         throw new Error(output.asErr.toString())
       }
@@ -108,41 +98,31 @@ export default class CreateBrickProfile extends PhatBaseCommand {
         registry,
         brickProfileContractId
       )
-      const brickProfileContractKey = await registry.getContractKeyOrFail(
-        brickProfileContractId
-      )
-      const brickProfile: BrickProfileContract = new PinkContractPromise(
-        apiPromise,
-        registry,
-        brickProfileAbi,
-        brickProfileContractId,
-        brickProfileContractKey
-      )
-      // Step 5: unsafeConfigureJsRunner
+      const brickProfile = await getContract({
+        client: registry,
+        contractId: brickProfileContractId,
+        abi: brickProfileAbi,
+        provider,
+      }) as BrickProfileContract
+
+      // unsafeConfigureJsRunner
       const jsRunnerContractId = await this.getJsRunnerContractId(endpoint)
       await this.unsafeConfigureJsRunner({
-        registry,
         contract: brickProfile,
         jsRunnerContractId,
-        pair,
-        cert,
       })
-      // Step 6: unsafeGenerateEtherAccount
-      const { output: queryCount } = await brickProfile.query.externalAccountCount(cert.address, {
-        cert,
-      })
+
+      // unsafeGenerateEtherAccount
+      const { output: queryCount } = await brickProfile.q.externalAccountCount()
       if (queryCount.isErr) {
         throw new Error(queryCount.asErr.toString())
       }
       const externalAccountCount = output.asOk.toNumber()
       if (externalAccountCount === 0) {
         await this.unsafeGenerateEtherAccount({
-          registry,
           contract: brickProfile,
           externalAccountCount,
           evmRpcEndpoint: evmRpcEndpoint || (type.isDevelopment || type.isLocal) ? 'https://polygon-mumbai.g.alchemy.com/v2/YWlujLKt0nSn5GrgEpGCUA0C_wKV1sVQ' : 'https://polygon-mainnet.g.alchemy.com/v2/W1kyx17tiFQFT2b19mGOqppx90BLHp0a',
-          pair,
-          cert
         })
       }
       this.action.succeed(`Created successfully.`)
@@ -154,62 +134,40 @@ export default class CreateBrickProfile extends PhatBaseCommand {
   }
 
   async unsafeGenerateEtherAccount({
-    registry,
     contract,
     externalAccountCount,
     evmRpcEndpoint,
-    pair,
-    cert,
   }: {
-    registry: OnChainRegistry
     contract: BrickProfileContract
     externalAccountCount: number
     evmRpcEndpoint: string
-    pair: KeyringPair
-    cert: CertificateData
   }) {
-    const waitForPRuntimeFinalized = bindWaitPRuntimeFinalized(registry)
-    await waitForPRuntimeFinalized(
-      contract.send.generateEvmAccount(
-        { cert, address: pair.address, pair },
-        evmRpcEndpoint
-      ),
-      async function () {
-        const { output } = await contract.query.externalAccountCount(cert.address, {
-          cert,
-        })
-        return output.isOk && output.asOk.toNumber() === externalAccountCount + 1
-      }
-    )
+    const result = await contract.exec.generateEvmAccount({
+      args: [evmRpcEndpoint]
+    })
+    await result.waitFinalized(async () => {
+      const { output } = await contract.q.externalAccountCount<u64>()
+      return output.isOk && output.asOk.toNumber() === externalAccountCount + 1
+    })
   }
 
   async unsafeConfigureJsRunner({
-    registry,
     contract,
     jsRunnerContractId,
-    pair,
-    cert,
   }: {
-    registry: OnChainRegistry
     contract: BrickProfileContract
     jsRunnerContractId: string
-    pair: KeyringPair
-    cert: CertificateData
   }) {
-    const waitForPRuntimeFinalized = bindWaitPRuntimeFinalized(registry)
-    await waitForPRuntimeFinalized(
-      contract.send.config(
-        { cert, address: pair.address, pair },
-        jsRunnerContractId
-      ),
-      async function () {
-        const { output } = await contract.query.getJsRunner(cert.address, { cert })
-        return (
-          output.isOk &&
-          output.asOk.isOk &&
-          output.asOk.asOk.toHex() === jsRunnerContractId
-        )
-      }
-    )
+    const result = await contract.exec.config({
+      args: [jsRunnerContractId]
+    })
+    await result.waitFinalized(async () => {
+      const { output } = await contract.q.getJsRunner<Result<AccountId, any>>()
+      return (
+        output.isOk &&
+        output.asOk.isOk &&
+        output.asOk.asOk.toHex() === jsRunnerContractId
+      )
+    })
   }
 }

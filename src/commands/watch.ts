@@ -92,7 +92,7 @@ export default class Watch extends Command {
         [action],
       )
       if (flags.once) {
-        process.exit()
+        process.exit(0)
       }
     })
   }

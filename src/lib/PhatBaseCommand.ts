@@ -8,21 +8,26 @@ import { Args, Flags } from '@oclif/core'
 import {
   getClient,
   OnChainRegistry,
-  signCertificate,
   unsafeGetAbiFromGitHubRepoByCodeHash,
   PinkContractPromise,
   PinkContractQuery,
-  type CertificateData,
+  EvmAccountMappingProvider,
+  KeyringPairProvider,
+  getContract,
   type PinkContractTx,
+  type LiteralRpc,
+  type AnyProvider
 } from '@phala/sdk'
 import { ApiPromise } from '@polkadot/api'
 import { Abi } from '@polkadot/api-contract'
 import { waitReady } from '@polkadot/wasm-crypto'
 import { Keyring } from '@polkadot/keyring'
 import { type KeyringPair } from '@polkadot/keyring/types'
-import type { Result, Vec, u64, u8, Text, Struct } from '@polkadot/types'
+import type { Result, Vec, u64, u8, Text, Bool, Struct } from '@polkadot/types'
 import type { AccountId, ChainType, Hash } from '@polkadot/types/interfaces'
-import { createPublicClient, http } from 'viem'
+import { createPublicClient, createWalletClient, http } from 'viem'
+import { mainnet } from 'viem/chains'
+import { privateKeyToAccount } from 'viem/accounts'
 
 import {
   MAX_BUILD_SIZE,
@@ -42,6 +47,7 @@ export interface ParsedFlags {
   readonly suri: string
   readonly accountFilePath: string
   readonly accountPassword: string
+  readonly privateKey: string
   readonly coreSettings: string
   readonly pruntimeUrl: string
   readonly externalAccountId: string
@@ -58,6 +64,13 @@ export interface ExternalAccountCodec extends Struct {
   rpc: Text
 }
 
+export interface WorkflowCodec extends Struct {
+  id: u64
+  name: Text
+  enabled: Bool
+  commandline: Text
+}
+
 export type BrickProfileFactoryContract = PinkContractPromise<
   {
     version: PinkContractQuery<[], u64[]>
@@ -72,7 +85,6 @@ export type BrickProfileFactoryContract = PinkContractPromise<
   }
 >
 
-
 export type BrickProfileContract = PinkContractPromise<
   {
     getJsRunner: PinkContractQuery<[], Result<AccountId, any>>
@@ -80,6 +92,7 @@ export type BrickProfileContract = PinkContractPromise<
       [],
       Result<Vec<ExternalAccountCodec>, any>
     >
+    getWorkflow: PinkContractQuery<[number | u64], Result<WorkflowCodec, any>>
     workflowCount: PinkContractQuery<[], u64>
     externalAccountCount: PinkContractQuery<[], u64>
     getEvmAccountAddress: PinkContractQuery<
@@ -88,7 +101,20 @@ export type BrickProfileContract = PinkContractPromise<
     >
   },
   {
+    config: PinkContractTx<[string | AccountId]>
     generateEvmAccount: PinkContractTx<[string | Text]>
+    addWorkflowAndAuthorize: PinkContractTx<
+      [string | Text, string | Text, number | u64]
+    >
+  }
+>
+
+export type ActionOffChainRollupContract = PinkContractPromise<
+  {
+    getAttestAddress: PinkContractQuery<[], Vec<u8>, any>
+  },
+  {
+    configCoreScript: PinkContractTx<[string]>
   }
 >
 
@@ -111,18 +137,23 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       char: 'a',
       required: false,
       description: 'Path to polkadot account JSON file',
-      exclusive: ['suri'],
+      exclusive: ['suri', 'privateKey'],
     }),
     accountPassword: Flags.string({
       char: 'p',
       required: false,
       description: 'Polkadot account password',
-      exclusive: ['suri'],
+      exclusive: ['suri', 'privateKey'],
     }),
     suri: Flags.string({
       required: false,
       description: 'Substrate uri',
-      exclusive: ['accountFilePath'],
+      exclusive: ['accountFilePath', 'privateKey'],
+    }),
+    privateKey: Flags.string({
+      description: 'EVM account private key',
+      required: false,
+      exclusive: ['suri', 'accountFilePath'],
     }),
     endpoint: Flags.string({
       description: 'Phala Blockchain RPC endpoint',
@@ -209,7 +240,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
         ? 'wss://poc6.phala.network/ws'
         : 'wss://api.phala.network/ws'
     }
-    return endpoint
+    return endpoint as LiteralRpc
   }
 
   async getBrickProfileFactoryContractId(endpoint: string) {
@@ -243,62 +274,49 @@ export default abstract class PhatBaseCommand extends BaseCommand {
   async getBrickProfileContractId({
     endpoint,
     registry,
-    apiPromise,
-    pair,
-    cert,
+    provider,
   }: {
     endpoint: string
     registry: OnChainRegistry
-    apiPromise: ApiPromise
-    pair: KeyringPair
-    cert: CertificateData
+    provider: AnyProvider
   }) {
     const brickProfileFactoryContractId = await this.getBrickProfileFactoryContractId(endpoint)
     const brickProfileFactoryAbi = await this.loadAbiByContractId(
       registry,
       brickProfileFactoryContractId
     )
-    const brickProfileFactoryContractKey = await registry.getContractKeyOrFail(
-      brickProfileFactoryContractId
-    )
-    const brickProfileFactory = new PinkContractPromise(
-      apiPromise,
-      registry,
-      brickProfileFactoryAbi,
-      brickProfileFactoryContractId,
-      brickProfileFactoryContractKey
-    )
-    const { output: brickProfileAddressQuery } =
-      await brickProfileFactory.query.getUserProfileAddress<Result<AccountId, any>>(pair.address, { cert })
+    const contract = await getContract({
+      client: registry,
+      contractId: brickProfileFactoryContractId,
+      abi: brickProfileFactoryAbi,
+      provider,
+    }) as BrickProfileFactoryContract
+    const { output } = await contract.q.getUserProfileAddress<Result<AccountId, any>>()
 
-    if (!brickProfileAddressQuery.isOk || !brickProfileAddressQuery.asOk.isOk) {
-      this.action.fail('You need to create the Brick Profile before continuing.\nPlease go to: https://bricks.phala.network/')
+    if (!output.isOk || !output.asOk.isOk) {
+      this.action.fail('You need to create the Brick Profile before continuing.\nPlease run the command: npx @phala/fn create-brick-profile')
       this.exit(1)
     }
 
-    const brickProfileContractId = brickProfileAddressQuery.asOk.asOk.toHex()
-    return brickProfileContractId
+    return output.asOk.asOk.toHex()
   }
 
   async connect({
     endpoint,
-    pair,
   }: {
-    endpoint: string
-    pair: KeyringPair
-  }): Promise<[ApiPromise, OnChainRegistry, CertificateData, ChainType]> {
+    endpoint: LiteralRpc
+  }): Promise<[ApiPromise, OnChainRegistry, ChainType]> {
     this.action.start(`Connecting to the endpoint: ${endpoint}`)
     const registry = await getClient({
       transport: endpoint,
       pruntimeURL: this.parsedFlags.pruntimeUrl,
     })
-    const cert = await signCertificate({ pair })
-    this.action.succeed(`Connected to the endpoint: ${endpoint}`)
     const type = await registry.api.rpc.system.chainType()
+    this.action.succeed(`Connected to the endpoint: ${endpoint}`)
     if (type.isDevelopment || type.isLocal) {
       this.log(chalk.yellow(`\nYou are connecting to a testnet.\n`))
     }
-    return [registry.api, registry, cert, type]
+    return [registry.api, registry, type]
   }
 
   async getRollupAbi() {
@@ -368,19 +386,15 @@ export default abstract class PhatBaseCommand extends BaseCommand {
 
   async promptEvmAccountId({
     contract,
-    cert,
   }: {
     contract: BrickProfileContract,
-    cert: CertificateData,
   }) {
     if (this.parsedFlags.externalAccountId) {
       return this.parsedFlags.externalAccountId
     }
     try {
       this.action.start('Querying your external accounts')
-      const { output } = await contract.query.getAllEvmAccounts(cert.address, {
-        cert,
-      })
+      const { output } = await contract.q.getAllEvmAccounts<Result<Vec<ExternalAccountCodec>, any>>()
 
       if (output.isErr) {
         throw new Error(output.asErr.toString())
@@ -396,7 +410,11 @@ export default abstract class PhatBaseCommand extends BaseCommand {
           rpcEndpoint: obj.rpc,
         }
       })
-      this.action.stop()
+      if (accounts.length === 0) {
+        this.action.fail('You need to add an EVM account before continuing.\nPlease run the command: npx @phala/fn add-evm-account')
+        this.exit(1)
+      }
+      this.action.succeed()
       const { account } = await inquirer.prompt({
         name: 'account',
         message: 'Please select an external account:',
@@ -477,6 +495,31 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       },
     ])
     return jsRunner
+  }
+
+  async getProvider({
+    apiPromise,
+  }: {
+    apiPromise: ApiPromise
+  }) {
+    if (this.parsedFlags.privateKey || (process.env.PRIVATE_KEY && !this.parsedFlags.suri && !this.parsedFlags.accountFilePath)) {
+      const privateKey = this.parsedFlags.privateKey || process.env.PRIVATE_KEY
+      const account = privateKeyToAccount(privateKey  as `0x${string}`)
+      const client = createWalletClient({
+        account,
+        chain: mainnet,
+        transport: http()
+      })
+      const provider = await EvmAccountMappingProvider.create(apiPromise, client, account)
+      return provider
+    }
+    const pair = await this.getDecodedPair({
+      suri: this.parsedFlags.suri || process.env.POLKADOT_WALLET_SURI,
+      accountFilePath: this.parsedFlags.accountFilePath || process.env.POLKADOT_WALLET_ACCOUNT_FILE,
+      accountPassword: this.parsedFlags.accountPassword || process.env.POLKADOT_WALLET_ACCOUNT_PASSWORD,
+    })
+    const provider = await KeyringPairProvider.create(apiPromise, pair)
+    return provider
   }
 
   async getDecodedPair({ suri, accountFilePath, accountPassword }: { suri?: string, accountFilePath?: string, accountPassword?: string }): Promise<KeyringPair> {

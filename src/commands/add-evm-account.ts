@@ -1,5 +1,7 @@
 import { Flags } from '@oclif/core'
 import { getContract } from '@phala/sdk'
+import type { u64, Result } from '@polkadot/types'
+import type { AccountId } from '@polkadot/types/interfaces'
 
 import PhatBaseCommand, { type ParsedFlags, type BrickProfileContract } from '../lib/PhatBaseCommand'
 
@@ -23,36 +25,26 @@ export default class AddEvmAccount extends PhatBaseCommand {
       evmRpcEndpoint: string
     }
 
-    // Verify the RPC endpoint
+    // verify the RPC endpoint
     await this.verifyRpcEndpoint(evmRpcEndpoint)
 
-    const pair = await this.getDecodedPair({
-      suri: this.parsedFlags.suri || process.env.POLKADOT_WALLET_SURI,
-      accountFilePath: this.parsedFlags.accountFilePath || process.env.POLKADOT_WALLET_ACCOUNT_FILE,
-      accountPassword: this.parsedFlags.accountPassword || process.env.POLKADOT_WALLET_ACCOUNT_PASSWORD,
-    })
-
-    // Step 1: Connect to the endpoint.
+    // connect to the endpoint
     const endpoint = this.getEndpoint()
-    const [apiPromise, registry, cert] = await this.connect({
-      endpoint,
-      pair,
-    })
+    const [apiPromise, registry] = await this.connect({ endpoint })
+    const provider = await this.getProvider({ apiPromise })
 
-    // Step 2: Query the brick profile contract id.
+    // query the brick profile contract id
     this.action.start('Querying your Brick Profile contract ID')
     const brickProfileContractId = await this.getBrickProfileContractId({
       endpoint,
       registry,
-      apiPromise,
-      pair,
-      cert,
+      provider,
     })
     this.action.succeed(`Your Brick Profile contract ID: ${brickProfileContractId}`)
 
-    // Step 3: generate evm account
+    // generate evm account
     try {
-      this.action.start('Adding evm account')
+      this.action.start('Adding EVM account')
       const brickProfileAbi = await this.loadAbiByContractId(
         registry,
         brickProfileContractId
@@ -61,39 +53,33 @@ export default class AddEvmAccount extends PhatBaseCommand {
         client: registry,
         contractId: brickProfileContractId,
         abi: brickProfileAbi,
+        provider,
       }) as BrickProfileContract
-      const { output } = await brickProfile.query.externalAccountCount(cert.address, {
-        cert,
-      })
+      const { output } = await brickProfile.q.externalAccountCount<u64>()
       if (output.isErr) {
         throw new Error(output.asErr.toString())
       }
       const externalAccountCount = output.asOk.toNumber()
 
-      const result = await brickProfile.send.generateEvmAccount(
-        { cert, address: pair.address, pair },
-        evmRpcEndpoint
-      )
+      const result = await brickProfile.exec.generateEvmAccount({
+        args: [evmRpcEndpoint]
+      })
       await result.waitFinalized(async () => {
-        const { output } = await brickProfile.query.externalAccountCount(cert.address, {
-          cert,
-        })
+        const { output } = await brickProfile.q.externalAccountCount<u64>()
         return output.isOk && output.asOk.toNumber() === externalAccountCount + 1
       })
 
-      const { output: evmAccountAddressOutput } = await brickProfile.query.getEvmAccountAddress(
-        cert.address,
-        { cert },
-        externalAccountCount
-      )
+      const { output: evmAccountAddressOutput } = await brickProfile.q.getEvmAccountAddress<Result<AccountId, any>>({
+        args: [externalAccountCount]
+      })
       if (evmAccountAddressOutput.isErr) {
         throw new Error(evmAccountAddressOutput.asErr.toString())
       }
       const evmAddress = evmAccountAddressOutput.asOk.asOk.toHex()
-      this.action.succeed(`Added successfully, your evm address is: ${evmAddress}`)
+      this.action.succeed(`Added successfully, your new EVM account address is: [${externalAccountCount}] ${evmAddress}`)
       process.exit(0)
     } catch (error) {
-      this.action.fail('Failed to add evm account.')
+      this.action.fail('Failed to add EVM account.')
       return this.error(error as Error)
     }
   }

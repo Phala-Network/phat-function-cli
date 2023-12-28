@@ -1,10 +1,11 @@
 import {
-  PinkContractPromise,
+  getContract,
 } from '@phala/sdk'
 import chalk from 'chalk'
+import type { Result, Vec } from '@polkadot/types'
 
 import PhatBaseCommand from '../lib/PhatBaseCommand'
-import type { BrickProfileContract } from '../lib/PhatBaseCommand'
+import type { BrickProfileContract, ExternalAccountCodec } from '../lib/PhatBaseCommand'
 
 export default class ListEvmAccounts extends PhatBaseCommand {
   static description = 'List EVM accounts'
@@ -18,50 +19,34 @@ export default class ListEvmAccounts extends PhatBaseCommand {
   }
 
   public async run(): Promise<void> {
-    const pair = await this.getDecodedPair({
-      suri: this.parsedFlags.suri || process.env.POLKADOT_WALLET_SURI,
-      accountFilePath: this.parsedFlags.accountFilePath || process.env.POLKADOT_WALLET_ACCOUNT_FILE,
-      accountPassword: this.parsedFlags.accountPassword || process.env.POLKADOT_WALLET_ACCOUNT_PASSWORD,
-    })
-
-    // Step 1: Connect to the endpoint.
+    // connect to the endpoint
     const endpoint = this.getEndpoint()
-    const [apiPromise, registry, cert] = await this.connect({
-      endpoint,
-      pair,
-    })
+    const [apiPromise, registry] = await this.connect({ endpoint })
+    const provider = await this.getProvider({ apiPromise })
 
-    // Step 2: Query the brick profile contract id.
+    // query the brick profile contract id
     this.action.start('Querying your Brick Profile contract ID')
     const brickProfileContractId = await this.getBrickProfileContractId({
       endpoint,
       registry,
-      apiPromise,
-      pair,
-      cert,
+      provider,
     })
     this.action.succeed(`Your Brick Profile contract ID: ${brickProfileContractId}`)
 
-    // Step 3: Querying your external accounts
+    // querying your external accounts
     try {
       this.action.start('Querying your external accounts')
       const brickProfileAbi = await this.loadAbiByContractId(
         registry,
         brickProfileContractId
       )
-      const brickProfileContractKey = await registry.getContractKeyOrFail(
-        brickProfileContractId
-      )
-      const brickProfile: BrickProfileContract = new PinkContractPromise(
-        apiPromise,
-        registry,
-        brickProfileAbi,
-        brickProfileContractId,
-        brickProfileContractKey
-      )
-      const { output } = await brickProfile.query.getAllEvmAccounts(cert.address, {
-        cert,
-      })
+      const brickProfile = await getContract({
+        client: registry,
+        contractId: brickProfileContractId,
+        abi: brickProfileAbi,
+        provider,
+      }) as BrickProfileContract
+      const { output } = await brickProfile.q.getAllEvmAccounts<Result<Vec<ExternalAccountCodec>, any>>()
       if (output.isErr) {
         throw new Error(output.asErr.toString())
       }
@@ -77,7 +62,7 @@ export default class ListEvmAccounts extends PhatBaseCommand {
           rpcEndpoint: obj.rpc,
         }
       })
-      accounts.map(account => this.log(`[${account.id}] ${account.address}. ${chalk.dim(account.rpcEndpoint)}`))
+      accounts.map(account => this.log(`[${account.id}] ${account.address} ${chalk.dim(account.rpcEndpoint)}`))
       process.exit(0)
     } catch (error) {
       this.action.fail('Failed to query your external accounts.')
