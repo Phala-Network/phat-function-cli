@@ -35,6 +35,7 @@ import {
 } from '../lib/runWebpack'
 import { formatWebpackMessages } from '../lib/formatWebpackMessages'
 import BaseCommand from '../lib/BaseCommand'
+import { add0xPrefix } from '../lib/utils'
 
 export interface ParsedFlags {
   readonly build: boolean
@@ -503,8 +504,8 @@ export default abstract class PhatBaseCommand extends BaseCommand {
     apiPromise: ApiPromise
   }) {
     if (this.parsedFlags.privateKey || (process.env.PRIVATE_KEY && !this.parsedFlags.suri && !this.parsedFlags.accountFilePath)) {
-      const privateKey = this.parsedFlags.privateKey || process.env.PRIVATE_KEY
-      const account = privateKeyToAccount(privateKey  as `0x${string}`)
+      const privateKey = add0xPrefix(this.parsedFlags.privateKey || process.env.PRIVATE_KEY!)
+      const account = privateKeyToAccount(privateKey)
       const client = createWalletClient({
         account,
         chain: mainnet,
