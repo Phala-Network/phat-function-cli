@@ -504,6 +504,10 @@ export default abstract class PhatBaseCommand extends BaseCommand {
     apiPromise: ApiPromise
   }) {
     if (this.parsedFlags.privateKey || (process.env.PRIVATE_KEY && !this.parsedFlags.suri && !this.parsedFlags.accountFilePath)) {
+      if (!apiPromise.consts?.evmAccountMapping?.eip712Name) {
+        this.action.fail('The current connected chain does not support EVM wallets.')
+        this.exit(1)
+      }
       const privateKey = add0xPrefix(this.parsedFlags.privateKey || process.env.PRIVATE_KEY!)
       const account = privateKeyToAccount(privateKey)
       const client = createWalletClient({
