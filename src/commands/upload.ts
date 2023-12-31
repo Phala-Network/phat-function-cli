@@ -114,14 +114,14 @@ export default class Upload extends PhatBaseCommand {
 
     // setting up the actions
     this.action.start('Setting up the actions')
-    const result2 = await brickProfile.exec.addWorkflowAndAuthorize({
+    await brickProfile.exec.addWorkflowAndAuthorize({
       args: [
         projectName,
         JSON.stringify(actions),
         externalAccountId
-      ]
+      ],
+      waitFinalized: true,
     })
-    await result2.waitFinalized()
     this.action.succeed(
       `🎉 Your workflow has been added, you can check it out here: https://bricks.phala.network/workflows/${brickProfileContractId}/${num}`
     )

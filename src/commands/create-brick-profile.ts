@@ -72,22 +72,22 @@ export default class CreateBrickProfile extends PhatBaseCommand {
 
     try {
       this.action.start('Creating your brick profile')
-      const result = await brickProfileFactory.exec.createUserProfile()
-      await result.waitFinalized(async () => {
-        const { output } = await brickProfileFactory.q.getUserProfileAddress<Result<AccountId, any>>()
-        const created = output && output.isOk && output.asOk.isOk
-        if (!created) {
+      await brickProfileFactory.exec.createUserProfile({
+        waitFinalized: async () => {
+          const { output } = await brickProfileFactory.q.getUserProfileAddress<Result<AccountId, any>>()
+          const created = output && output.isOk && output.asOk.isOk
+          if (!created) {
+            return false
+          }
+          const result = await registry.getContractKey(
+            output.asOk.asOk.toHex()
+          )
+          if (result) {
+            return true
+          }
           return false
         }
-        const result = await registry.getContractKey(
-          output.asOk.asOk.toHex()
-        )
-        if (result) {
-          return true
-        }
-        return false
       })
-
       // query profile
       const { output } = await brickProfileFactory.q.getUserProfileAddress<Result<AccountId, any>>()
       if (output.isErr) {
@@ -142,12 +142,12 @@ export default class CreateBrickProfile extends PhatBaseCommand {
     externalAccountCount: number
     evmRpcEndpoint: string
   }) {
-    const result = await contract.exec.generateEvmAccount({
-      args: [evmRpcEndpoint]
-    })
-    await result.waitFinalized(async () => {
-      const { output } = await contract.q.externalAccountCount<u64>()
-      return output.isOk && output.asOk.toNumber() === externalAccountCount + 1
+    await contract.exec.generateEvmAccount({
+      args: [evmRpcEndpoint],
+      waitFinalized: async () => {
+        const { output } = await contract.q.externalAccountCount<u64>()
+        return output.isOk && output.asOk.toNumber() === externalAccountCount + 1
+      }
     })
   }
 
@@ -158,16 +158,16 @@ export default class CreateBrickProfile extends PhatBaseCommand {
     contract: BrickProfileContract
     jsRunnerContractId: string
   }) {
-    const result = await contract.exec.config({
-      args: [jsRunnerContractId]
-    })
-    await result.waitFinalized(async () => {
-      const { output } = await contract.q.getJsRunner<Result<AccountId, any>>()
-      return (
-        output.isOk &&
-        output.asOk.isOk &&
-        output.asOk.asOk.toHex() === jsRunnerContractId
-      )
+    await contract.exec.config({
+      args: [jsRunnerContractId],
+      waitFinalized: async () => {
+        const { output } = await contract.q.getJsRunner<Result<AccountId, any>>()
+        return (
+          output.isOk &&
+          output.asOk.isOk &&
+          output.asOk.asOk.toHex() === jsRunnerContractId
+        )
+      }
     })
   }
 }

@@ -61,12 +61,12 @@ export default class AddEvmAccount extends PhatBaseCommand {
       }
       const externalAccountCount = output.asOk.toNumber()
 
-      const result = await brickProfile.exec.generateEvmAccount({
-        args: [evmRpcEndpoint]
-      })
-      await result.waitFinalized(async () => {
-        const { output } = await brickProfile.q.externalAccountCount<u64>()
-        return output.isOk && output.asOk.toNumber() === externalAccountCount + 1
+      await brickProfile.exec.generateEvmAccount({
+        args: [evmRpcEndpoint],
+        waitFinalized: async () => {
+          const { output } = await brickProfile.q.externalAccountCount<u64>()
+          return output.isOk && output.asOk.toNumber() === externalAccountCount + 1
+        }
       })
 
       const { output: evmAccountAddressOutput } = await brickProfile.q.getEvmAccountAddress<Result<AccountId, any>>({
