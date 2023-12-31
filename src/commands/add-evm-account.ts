@@ -49,12 +49,12 @@ export default class AddEvmAccount extends PhatBaseCommand {
         registry,
         brickProfileContractId
       )
-      const brickProfile = await getContract({
+      const brickProfile = await getContract<BrickProfileContract>({
         client: registry,
         contractId: brickProfileContractId,
         abi: brickProfileAbi,
         provider,
-      }) as BrickProfileContract
+      })
       const { output } = await brickProfile.q.externalAccountCount<u64>()
       if (output.isErr) {
         throw new Error(output.asErr.toString())

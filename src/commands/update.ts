@@ -52,12 +52,12 @@ export default class Update extends PhatBaseCommand {
       registry,
       brickProfileContractId
     )
-    const brickProfile = await getContract({
+    const brickProfile = await getContract<BrickProfileContract>({
       client: registry,
       contractId: brickProfileContractId,
       abi: brickProfileAbi,
       provider,
-    }) as BrickProfileContract
+    })
     const { output: workflowQuery } = await brickProfile.q.getWorkflow<Result<WorkflowCodec, any>>({
       args: [workflowId]
     })
@@ -78,12 +78,12 @@ export default class Update extends PhatBaseCommand {
     // Step 4: Update the JS.
     this.action.start('Updating')
     const actionOffchainRollupContractId = actions[0].config.callee
-    const rollupContract = await getContract({
+    const rollupContract = await getContract<ActionOffChainRollupContract>({
       client: registry,
       contractId: actionOffchainRollupContractId,
       abi: rollupAbi,
       provider,
-    }) as ActionOffChainRollupContract
+    })
     await rollupContract.exec.configCoreScript({
       args: [fs.readFileSync(buildScriptPath, 'utf8')]
     })

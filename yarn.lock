@@ -602,10 +602,10 @@
   resolved "https://registry.yarnpkg.com/@phala/pink-env/-/pink-env-1.0.13.tgz#8dda19538733588f7fb9c5d81f61bf118d37d63d"
   integrity sha512-yo/mxBRs+auJz7/k3jeSiQFk6UZpvAdivrFPpQZb2a76vrSLHH5eU86CuZedpvZNBggUde7QUVo8TT6MGQWV+Q==
 
-"@phala/sdk@0.6.0-beta.3":
-  version "0.6.0-beta.3"
-  resolved "https://registry.yarnpkg.com/@phala/sdk/-/sdk-0.6.0-beta.3.tgz#5fac667d80c3ab5568446702ccc3ffcc1211d039"
-  integrity sha512-Snh2K/Soyv+WDcSxsQMH+U9zbesK/DXbaRWRm7Haoz9HWo8PLQFjVpIZf/pofBPK5sxhZXn0YqkSzuNnC2EF8w==
+"@phala/sdk@0.6.0-beta.9":
+  version "0.6.0-beta.9"
+  resolved "https://registry.yarnpkg.com/@phala/sdk/-/sdk-0.6.0-beta.9.tgz#171a1e6bd841e819c9d474f19859caf7669fa40c"
+  integrity sha512-aE853M1JxfXzWvkC9SjUYFiR5IdcuKVaSph0IATCN9jMs7HqYqSCHnsyhpd5J4+i3xYGi19qItURjOKyfLj1hA==
   dependencies:
     "@polkadot/api" "~10.11.1"
     "@polkadot/api-contract" "~10.11.1"
@@ -614,6 +614,7 @@
     "@polkadot/networks" "~12.6.1"
     "@polkadot/types" "~10.11.1"
     "@polkadot/types-augment" "~10.11.1"
+    "@polkadot/types-codec" "~10.11.1"
     "@polkadot/ui-keyring" "~3.6.4"
     "@polkadot/ui-settings" "~3.6.4"
     "@polkadot/util" "~12.6.1"
@@ -793,7 +794,7 @@
     "@polkadot/util" "^12.6.2"
     tslib "^2.6.2"
 
-"@polkadot/types-codec@10.11.2":
+"@polkadot/types-codec@10.11.2", "@polkadot/types-codec@~10.11.1":
   version "10.11.2"
   resolved "https://registry.yarnpkg.com/@polkadot/types-codec/-/types-codec-10.11.2.tgz#e4570f8c92ffad090fb1d04a94731979537ced33"
   integrity sha512-3xjOQL+LOOMzYqlgP9ROL0FQnzU8lGflgYewzau7AsDlFziSEtb49a9BpYo6zil4koC+QB8zQ9OHGFumG08T8w==

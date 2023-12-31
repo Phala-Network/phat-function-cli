@@ -41,12 +41,12 @@ export default class Upload extends PhatBaseCommand {
       registry,
       brickProfileContractId
     )
-    const brickProfile = await getContract({
+    const brickProfile = await getContract<BrickProfileContract>({
       client: registry,
       contractId: brickProfileContractId,
       abi: brickProfileAbi,
       provider,
-    }) as BrickProfileContract
+    })
     this.action.succeed(`Your Brick Profile contract ID: ${brickProfileContractId}`)
 
     // instantiating the ActionOffchainRollup contract

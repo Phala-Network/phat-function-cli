@@ -40,12 +40,12 @@ export default class ListEvmAccounts extends PhatBaseCommand {
         registry,
         brickProfileContractId
       )
-      const brickProfile = await getContract({
+      const brickProfile = await getContract<BrickProfileContract>({
         client: registry,
         contractId: brickProfileContractId,
         abi: brickProfileAbi,
         provider,
-      }) as BrickProfileContract
+      })
       const { output } = await brickProfile.q.getAllEvmAccounts<Result<Vec<ExternalAccountCodec>, any>>()
       if (output.isErr) {
         throw new Error(output.asErr.toString())

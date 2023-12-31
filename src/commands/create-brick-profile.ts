@@ -47,12 +47,12 @@ export default class CreateBrickProfile extends PhatBaseCommand {
       registry,
       brickProfileFactoryContractId
     )
-    const brickProfileFactory = await getContract({
+    const brickProfileFactory = await getContract<BrickProfileFactoryContract>({
       client: registry,
       contractId: brickProfileFactoryContractId,
       abi: brickProfileFactoryAbi,
       provider,
-    }) as BrickProfileFactoryContract
+    })
     const { output } = await brickProfileFactory.q.getUserProfileAddress<Result<AccountId, any>>()
     if (output.isOk && output.asOk.isOk) {
       this.action.succeed(`Your Brick Profile already exists, contract ID: ${output.asOk.asOk.toHex()}`)
@@ -98,12 +98,12 @@ export default class CreateBrickProfile extends PhatBaseCommand {
         registry,
         brickProfileContractId
       )
-      const brickProfile = await getContract({
+      const brickProfile = await getContract<BrickProfileContract>({
         client: registry,
         contractId: brickProfileContractId,
         abi: brickProfileAbi,
         provider,
-      }) as BrickProfileContract
+      })
 
       // unsafeConfigureJsRunner
       const jsRunnerContractId = await this.getJsRunnerContractId(endpoint)

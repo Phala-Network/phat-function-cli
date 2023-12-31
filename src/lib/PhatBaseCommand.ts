@@ -286,12 +286,12 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       registry,
       brickProfileFactoryContractId
     )
-    const contract = await getContract({
+    const contract = await getContract<BrickProfileFactoryContract>({
       client: registry,
       contractId: brickProfileFactoryContractId,
       abi: brickProfileFactoryAbi,
       provider,
-    }) as BrickProfileFactoryContract
+    })
     const { output } = await contract.q.getUserProfileAddress<Result<AccountId, any>>()
 
     if (!output.isOk || !output.asOk.isOk) {
