@@ -10,6 +10,7 @@
     "allowJs": true
   },
   "include": [
-    "node_modules/@phala/pink-env"
+    "node_modules/@phala/pink-env",
+     "**/*"
   ]
 }
