@@ -14,9 +14,8 @@ import { formatWebpackMessages } from '../lib/formatWebpackMessages'
 export const MAX_BUILD_SIZE = 1024 * 400
 
 const BUILD_CODE_TEMPLATE = `
-  // @ts-ignore
-  import entry from '{filePath}';
-  (globalThis as any).scriptOutput = entry.apply(null, (globalThis as any).scriptArgs);
+  import main from '{filePath}';
+  globalThis.scriptOutput = main.apply(null, globalThis.scriptArgs);
 `
 
 const getBaseConfig = (
@@ -52,6 +51,14 @@ const getBaseConfig = (
           onlyCompileBundledFiles: true,
         }
       },
+      {
+        test: /keccak256\.js$/,
+        loader: require.resolve('string-replace-loader'),
+        options: {
+          search: /import { keccak_256 } from '@noble\/hashes\/sha3';/,
+          replace: `const keccak_256 = value => pink.hash('keccak256', value);`,
+        }
+      }
     ],
   },
 
