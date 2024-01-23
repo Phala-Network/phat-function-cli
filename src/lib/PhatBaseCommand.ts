@@ -50,6 +50,7 @@ export interface ParsedFlags {
   readonly accountPassword: string
   readonly privateKey: string
   readonly mnemonic: string
+  readonly addressIndex: number
   readonly coreSettings: string
   readonly pruntimeUrl: string
   readonly externalAccountId: string
@@ -160,6 +161,12 @@ export default abstract class PhatBaseCommand extends BaseCommand {
     mnemonic: Flags.string({
       description: 'EVM account mnemonic',
       required: false,
+      exclusive: ['suri', 'accountFilePath', 'privateKey'],
+    }),
+    addressIndex: Flags.integer({
+      description: 'EVM account address index',
+      required: false,
+      default: 0,
       exclusive: ['suri', 'accountFilePath', 'privateKey'],
     }),
     endpoint: Flags.string({
@@ -529,7 +536,9 @@ export default abstract class PhatBaseCommand extends BaseCommand {
         this.action.fail('The current connected chain does not support EVM wallets.')
         this.exit(1)
       }
-      const account = mnemonicToAccount(this.parsedFlags.mnemonic || process.env.MNEMONIC!)
+      const account = mnemonicToAccount(this.parsedFlags.mnemonic || process.env.MNEMONIC!, {
+        addressIndex: this.parsedFlags.addressIndex,
+      })
       const client = createWalletClient({
         account,
         chain: mainnet,
