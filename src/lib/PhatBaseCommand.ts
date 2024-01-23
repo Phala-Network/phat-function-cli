@@ -27,7 +27,7 @@ import type { Result, Vec, u64, u8, Text, Bool, Struct } from '@polkadot/types'
 import type { AccountId, ChainType, Hash } from '@polkadot/types/interfaces'
 import { createPublicClient, createWalletClient, http } from 'viem'
 import { mainnet } from 'viem/chains'
-import { privateKeyToAccount } from 'viem/accounts'
+import { privateKeyToAccount, mnemonicToAccount } from 'viem/accounts'
 
 import {
   MAX_BUILD_SIZE,
@@ -49,6 +49,8 @@ export interface ParsedFlags {
   readonly accountFilePath: string
   readonly accountPassword: string
   readonly privateKey: string
+  readonly mnemonic: string
+  readonly addressIndex: number
   readonly coreSettings: string
   readonly pruntimeUrl: string
   readonly externalAccountId: string
@@ -138,23 +140,34 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       char: 'a',
       required: false,
       description: 'Path to polkadot account JSON file',
-      exclusive: ['suri', 'privateKey'],
+      exclusive: ['suri', 'privateKey', 'mnemonic'],
     }),
     accountPassword: Flags.string({
       char: 'p',
       required: false,
       description: 'Polkadot account password',
-      exclusive: ['suri', 'privateKey'],
+      exclusive: ['suri', 'privateKey', 'mnemonic'],
     }),
     suri: Flags.string({
       required: false,
       description: 'Substrate uri',
-      exclusive: ['accountFilePath', 'privateKey'],
+      exclusive: ['accountFilePath', 'privateKey', 'mnemonic'],
     }),
     privateKey: Flags.string({
       description: 'EVM account private key',
       required: false,
-      exclusive: ['suri', 'accountFilePath'],
+      exclusive: ['suri', 'accountFilePath', 'mnemonic'],
+    }),
+    mnemonic: Flags.string({
+      description: 'EVM account mnemonic',
+      required: false,
+      exclusive: ['suri', 'accountFilePath', 'privateKey'],
+    }),
+    addressIndex: Flags.integer({
+      description: 'EVM account address index',
+      required: false,
+      default: 0,
+      exclusive: ['suri', 'accountFilePath', 'privateKey'],
     }),
     endpoint: Flags.string({
       description: 'Phala Blockchain RPC endpoint',
@@ -510,6 +523,22 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       }
       const privateKey = add0xPrefix(this.parsedFlags.privateKey || process.env.PRIVATE_KEY!)
       const account = privateKeyToAccount(privateKey)
+      const client = createWalletClient({
+        account,
+        chain: mainnet,
+        transport: http()
+      })
+      const provider = await EvmAccountMappingProvider.create(apiPromise, client, account)
+      return provider
+    }
+    if (this.parsedFlags.mnemonic || (process.env.MNEMONIC && !this.parsedFlags.suri && !this.parsedFlags.accountFilePath)) {
+      if (!apiPromise.consts?.evmAccountMapping?.eip712Name) {
+        this.action.fail('The current connected chain does not support EVM wallets.')
+        this.exit(1)
+      }
+      const account = mnemonicToAccount(this.parsedFlags.mnemonic || process.env.MNEMONIC!, {
+        addressIndex: this.parsedFlags.addressIndex,
+      })
       const client = createWalletClient({
         account,
         chain: mainnet,
