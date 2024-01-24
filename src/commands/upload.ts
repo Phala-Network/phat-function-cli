@@ -31,7 +31,7 @@ export default class Upload extends PhatBaseCommand {
     const provider = await this.getProvider({ apiPromise })
 
     // query the brick profile contract id
-    this.action.start('Querying your Brick Profile contract ID')
+    this.action.start('Querying your Dashboard Profile contract ID')
     const brickProfileContractId = await this.getBrickProfileContractId({
       endpoint,
       registry,
@@ -47,7 +47,7 @@ export default class Upload extends PhatBaseCommand {
       abi: brickProfileAbi,
       provider,
     })
-    this.action.succeed(`Your Brick Profile contract ID: ${brickProfileContractId}`)
+    this.action.succeed(`Your Dashboard Profile contract ID: ${brickProfileContractId}`)
 
     // instantiating the ActionOffchainRollup contract
     this.action.start('Instantiating the ActionOffchainRollup contract')

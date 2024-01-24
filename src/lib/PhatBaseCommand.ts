@@ -178,7 +178,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       required: false,
     }),
     brickProfileFactory: Flags.string({
-      description: 'Brick profile factory contract id',
+      description: 'Dashboard Profile factory contract id',
       required: false,
       default: '',
     }),
@@ -308,7 +308,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
     const { output } = await contract.q.getUserProfileAddress<Result<AccountId, any>>()
 
     if (!output.isOk || !output.asOk.isOk) {
-      this.action.fail('You need to create the Brick Profile before continuing.\nPlease run the command: npx @phala/fn create-brick-profile')
+      this.action.fail('You need to create the Dashboard Profile before continuing.\nPlease run the command: npx @phala/fn create-brick-profile')
       this.exit(1)
     }
 
@@ -486,7 +486,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
   }
 
   async promptBrickProfileFactory(
-    message = 'Please enter the brick profile factory contract ID'
+    message = 'Please enter the dashboard profile factory contract ID'
   ): Promise<string> {
     const { brickProfileFactory } = await inquirer.prompt([
       {

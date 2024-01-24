@@ -22,8 +22,8 @@ type CreateBrickProfileArgs = ParsedFlags & {
   type: 'substrate' | 'evm'
 }
 
-export default class CreateBrickProfile extends PhatBaseCommand {
-  static description = 'Create brick profile'
+export default class CreateDashboardProfile extends PhatBaseCommand {
+  static description = 'Create Dashboard Profile'
 
   static args = {
     ...PhatBaseCommand.args
@@ -85,8 +85,8 @@ export default class CreateBrickProfile extends PhatBaseCommand {
 
     this.log('Your address is', chalk.blue(provider.address))
 
-    // check if brick profile already exists
-    this.action.start('Checking your brick profile contract ID')
+    // check if profile already exists
+    this.action.start('Checking your Dashboard Profile contract ID')
     const brickProfileFactoryContractId = await this.getBrickProfileFactoryContractId(endpoint)
     const brickProfileFactoryAbi = await this.loadAbiByContractId(
       registry,
@@ -100,10 +100,10 @@ export default class CreateBrickProfile extends PhatBaseCommand {
     })
     const { output } = await brickProfileFactory.q.getUserProfileAddress<Result<AccountId, any>>()
     if (output.isOk && output.asOk.isOk) {
-      this.action.succeed(`Your Brick Profile already exists, contract ID: ${output.asOk.asOk.toHex()}`)
+      this.action.succeed(`Your Dashboard Profile already exists, contract ID: ${output.asOk.asOk.toHex()}`)
       process.exit(0)
     }
-    this.action.succeed('Your brick profile does not exist')
+    this.action.succeed('Your Dashboard Profile does not exist')
 
     // check balance
     this.action.start('Checking account balance')
@@ -116,7 +116,7 @@ export default class CreateBrickProfile extends PhatBaseCommand {
     this.action.succeed(`Account balance: ${balance} PHA`)
 
     try {
-      this.action.start('Creating your brick profile')
+      this.action.start('Creating your Dashboard Profile')
       await brickProfileFactory.exec.createUserProfile({
         waitFinalized: async () => {
           const { output } = await brickProfileFactory.q.getUserProfileAddress<Result<AccountId, any>>()
@@ -173,7 +173,7 @@ export default class CreateBrickProfile extends PhatBaseCommand {
       this.action.succeed(`Created successfully.`)
       process.exit(0)
     } catch (error) {
-      this.action.fail('Failed to create brick profile.')
+      this.action.fail('Failed to create Dashboard Profile.')
       return this.error(error as Error)
     }
   }

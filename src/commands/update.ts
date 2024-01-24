@@ -38,13 +38,13 @@ export default class Update extends PhatBaseCommand {
     const provider = await this.getProvider({ apiPromise })
 
     // query the brick profile contract id
-    this.action.start('Querying your Brick Profile contract ID')
+    this.action.start('Querying your Dashboard Profile contract ID')
     const brickProfileContractId = await this.getBrickProfileContractId({
       endpoint,
       registry,
       provider,
     })
-    this.action.succeed(`Your Brick Profile contract ID: ${brickProfileContractId}`)
+    this.action.succeed(`Your Dashboard Profile contract ID: ${brickProfileContractId}`)
 
     // check current user workflow settings
     this.action.start('Checking your workflow settings')
