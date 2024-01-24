@@ -45,10 +45,10 @@ export interface ParsedFlags {
   readonly brickProfileFactory: string
   readonly rpc: string
   readonly consumerAddress: string
-  readonly suri: string
+  suri: string
   readonly accountFilePath: string
   readonly accountPassword: string
-  readonly privateKey: string
+  privateKey: string
   readonly mnemonic: string
   readonly addressIndex: number
   readonly coreSettings: string
