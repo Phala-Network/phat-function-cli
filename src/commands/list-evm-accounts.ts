@@ -62,6 +62,10 @@ export default class ListEvmAccounts extends PhatBaseCommand {
           rpcEndpoint: obj.rpc,
         }
       })
+      if (accounts.length === 0) {
+        this.log('You have no external accounts, please call `add-evm-account` first.')
+        process.exit(0)
+      }
       accounts.map(account => this.log(`[${account.id}] ${account.address} ${chalk.dim(account.rpcEndpoint)}`))
       process.exit(0)
     } catch (error) {
