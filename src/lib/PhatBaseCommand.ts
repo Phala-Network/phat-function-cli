@@ -216,6 +216,8 @@ export default abstract class PhatBaseCommand extends BaseCommand {
   public parsedFlags!: ParsedFlags
   public parsedArgs!: ParsedArgs
 
+  protected _isTestnet: boolean = false
+
   async init(): Promise<void> {
     const {
       flags,
@@ -242,6 +244,8 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       }
       console.log(...args)
     }
+
+    this._isTestnet = this.parsedFlags.mode === 'development' || this.parsedFlags.mode === 'dev'
   }
 
   getEndpoint() {
@@ -328,7 +332,10 @@ export default abstract class PhatBaseCommand extends BaseCommand {
     const type = await registry.api.rpc.system.chainType()
     this.action.succeed(`Connected to the endpoint: ${endpoint}`)
     if (type.isDevelopment || type.isLocal) {
+      this._isTestnet = true
       this.log(chalk.yellow(`\nYou are connecting to a testnet.\n`))
+    } else {
+      this._isTestnet = false
     }
     return [registry.api, registry, type]
   }
@@ -528,7 +535,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
         chain: mainnet,
         transport: http()
       })
-      const provider = await EvmAccountMappingProvider.create(apiPromise, client, account)
+      const provider = await EvmAccountMappingProvider.create(apiPromise, client, account, { SS58Prefix: 30 })
       return provider
     }
     if (this.parsedFlags.mnemonic || (process.env.MNEMONIC && !this.parsedFlags.suri && !this.parsedFlags.accountFilePath)) {
@@ -544,7 +551,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
         chain: mainnet,
         transport: http()
       })
-      const provider = await EvmAccountMappingProvider.create(apiPromise, client, account)
+      const provider = await EvmAccountMappingProvider.create(apiPromise, client, account, { SS58Prefix: 30 })
       return provider
     }
     const pair = await this.getDecodedPair({
@@ -558,7 +565,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
 
   async getDecodedPair({ suri, accountFilePath, accountPassword }: { suri?: string, accountFilePath?: string, accountPassword?: string }): Promise<KeyringPair> {
     await waitReady()
-    const keyring = new Keyring({ type: 'sr25519' })
+    const keyring = new Keyring({ type: 'sr25519', ss58Format: 30 })
     let pair: KeyringPair
 
     if (accountFilePath) {

@@ -22,6 +22,8 @@ type CreateBrickProfileArgs = ParsedFlags & {
   type: 'substrate' | 'evm'
 }
 
+const MINIMAL_PHA = 50
+
 export default class CreateDashboardProfile extends PhatBaseCommand {
   static description = 'Create Dashboard Profile'
 
@@ -56,22 +58,29 @@ export default class CreateDashboardProfile extends PhatBaseCommand {
       }
     } else {
       const mnemonic = generateMnemonic(english)
-      this.log('\nPlease copy the following mnemonic and keep it safe.\n')
-      this.log(chalk.yellow(mnemonic), '\n')
+      this.log('\nPlease copy the following recovery phrase and keep it safe.\n')
+      this.log(chalk.red(mnemonic), '\n')
       if (accountType === 'substrate') {
         const suri = u8aToHex(mnemonicToMiniSecret(mnemonic))
         this.parsedFlags.suri = suri
         this.log('Please run following command to save your account to .env file.\n')
-        this.log(`echo 'POLKADOT_WALLET_SURI=${suri}' >> .env`)
+        this.log(chalk.green(`echo 'POLKADOT_WALLET_SURI=${suri}' >> .env`))
       } else if (accountType === 'evm') {
         this.warn('You are generating EVM account, please note it only available on PoC6 testnet now.')
         const account = mnemonicToAccount(mnemonic, { addressIndex })
         this.parsedFlags.privateKey = toHex(account.getHdKey().privateKey!)
+        this.log('')
         this.log('Please run following command to save your account to .env file.\n')
-        this.log(`echo 'PRIVATE_KEY=${toHex(account.getHdKey().privateKey!)}' >> .env`)
+        this.log(chalk.green(`echo 'PRIVATE_KEY=${toHex(account.getHdKey().privateKey!)}' >> .env`))
       } else {
         return this.error('You need specified --type to continuing.')
       }
+      this.log('')
+      this.log(`You need at least ${MINIMAL_PHA} PHA to continuing.`)
+      this.log('Learn more on get test tokens from Faucet: https://phala.network/posts/how-to-create-a-phat-dashboard-account-and-get-test-tokens')
+      this.log('')
+      this.log('Once you have tokens in account, rerun this command without --generate flag.')
+      this.log('')
     }
 
     if (evmRpcEndpoint) {
@@ -84,6 +93,11 @@ export default class CreateDashboardProfile extends PhatBaseCommand {
     const provider = await this.getProvider({ apiPromise })
 
     this.log('Your address is', chalk.blue(provider.address))
+
+    if (generate) {
+      return process.exit(0)
+    }
+    this.log('')
 
     // check if profile already exists
     this.action.start('Checking your Dashboard Profile contract ID')
@@ -109,8 +123,8 @@ export default class CreateDashboardProfile extends PhatBaseCommand {
     this.action.start('Checking account balance')
     const accountQueryResult = await registry.api.query.system.account<PartialAccountQueryResult>(provider.address)
     const balance = Number(accountQueryResult.data.free.toBigInt() / BigInt(1e12))
-    if (balance < 50) {
-      this.action.fail(`Insufficient on-chain balance, please go to ${type.isDevelopment || type.isLocal ? 'https://phala.network/faucet' : 'https://docs.phala.network/introduction/basic-guidance/get-pha-and-transfer'} to get more than 50 PHA before continuing the process.`)
+    if (balance < MINIMAL_PHA) {
+      this.action.fail(`Insufficient on-chain balance, please go to ${type.isDevelopment || type.isLocal ? 'https://phala.network/faucet' : 'https://docs.phala.network/introduction/basic-guidance/get-pha-and-transfer'} to get more than ${MINIMAL_PHA} PHA before continuing the process.`)
       process.exit(0)
     }
     this.action.succeed(`Account balance: ${balance} PHA`)
@@ -170,7 +184,13 @@ export default class CreateDashboardProfile extends PhatBaseCommand {
           evmRpcEndpoint: evmRpcEndpoint || (type.isDevelopment || type.isLocal) ? 'https://polygon-mumbai.g.alchemy.com/v2/YWlujLKt0nSn5GrgEpGCUA0C_wKV1sVQ' : 'https://polygon-mainnet.g.alchemy.com/v2/W1kyx17tiFQFT2b19mGOqppx90BLHp0a',
         })
       }
-      this.action.succeed(`Created successfully.`)
+      this.action.succeed(`Profile Created.`)
+
+      this.log('')
+      this.log(chalk.green('Your profile is ready to use.'))
+      this.log('')
+      this.log('You can continuing with CLI or Web UI: https://dashboard.phala.network/')
+
       process.exit(0)
     } catch (error) {
       this.action.fail('Failed to create Dashboard Profile.')
