@@ -53,7 +53,14 @@ export default class CreateDashboardProfile extends PhatBaseCommand {
   public async run(): Promise<void> {
     const { generate, type: accountType, evmRpcEndpoint, addressIndex } = this.parsedFlags as CreateBrickProfileArgs
     if (!generate) {
-      if (!this.parsedFlags.mnemonic && !this.parsedFlags.privateKey && !this.parsedFlags.suri && !process.env.PRIVATE_KEY && !process.env.POLKADOT_WALLET_SURI) {
+      if (
+        !this.parsedFlags.mnemonic
+        && !this.parsedFlags.privateKey
+        && !this.parsedFlags.suri
+        && !process.env.PRIVATE_KEY
+        && !process.env.POLKADOT_WALLET_SURI
+        && !process.env.MNEMONIC
+      ) {
         return this.error('You need specified one of --mnemonic, --privateKey, --suri or --generate to continuing.')
       }
     } else {

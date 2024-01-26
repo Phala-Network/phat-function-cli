@@ -543,9 +543,8 @@ export default abstract class PhatBaseCommand extends BaseCommand {
         this.action.fail('The current connected chain does not support EVM wallets.')
         this.exit(1)
       }
-      const account = mnemonicToAccount(this.parsedFlags.mnemonic || process.env.MNEMONIC!, {
-        addressIndex: this.parsedFlags.addressIndex,
-      })
+      const addressIndex = Number(process.env.EVM_MNEMONIC_ADDRESS_INDEX || this.parsedFlags.addressIndex)
+      const account = mnemonicToAccount(this.parsedFlags.mnemonic || process.env.MNEMONIC!, { addressIndex })
       const client = createWalletClient({
         account,
         chain: mainnet,
