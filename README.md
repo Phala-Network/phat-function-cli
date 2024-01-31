@@ -215,7 +215,7 @@ npx @phala/fn run dist/index.js -a foo -a bar
 ## Uploading the script to the Phat Contract
 
 ### Prerequisites
-- Active Phala Profile with version `>= 1.0.1` via [Phat Contract 2.0 UI](https://bricks.phala.network)
+- Active Phala Profile with version `>= 1.0.1` via [Phat Contract 2.0 UI](https://dashboard.phala.network)
 - RPC Endpoint for EVM Chain Mainnet & EVM Chain Testnet
   - [Alchemy](https://alchemy.com) - This repo example uses Alchemy's API Key.
   - [Infura](https://infura.io)
@@ -228,7 +228,7 @@ This step requires you to have a Polkadot account. You can get an account from o
 - [Talisman Wallet](https://www.talisman.xyz/)
 - [SubWallet](https://www.subwallet.app/) (**Support for iOS/Android**)
 
-Then, create your Phala Profile account on the [Phala Testnet](https://bricks.phala.network) or [Phala Mainnet](https://bricks.phala.network). Here is a quick 1 minute [YouTube video](https://youtu.be/z1MR48NYtYc) on setting up from scratch.
+Then, create your Phala Profile account on the [Phala Testnet](https://dashboard.phala.network) or [Phala Mainnet](https://dashboard.phala.network). Here is a quick 1 minute [YouTube video](https://youtu.be/z1MR48NYtYc) on setting up from scratch.
 
 ### Option 1: Upload the script via exported Polkadot account file
 
