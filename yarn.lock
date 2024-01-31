@@ -602,7 +602,7 @@
   resolved "https://registry.yarnpkg.com/@phala/pink-env/-/pink-env-1.0.13.tgz#8dda19538733588f7fb9c5d81f61bf118d37d63d"
   integrity sha512-yo/mxBRs+auJz7/k3jeSiQFk6UZpvAdivrFPpQZb2a76vrSLHH5eU86CuZedpvZNBggUde7QUVo8TT6MGQWV+Q==
 
-"@phala/sdk@^0.6.0-beta.14":
+"@phala/sdk@0.6.0-beta.14":
   version "0.6.0-beta.14"
   resolved "https://registry.yarnpkg.com/@phala/sdk/-/sdk-0.6.0-beta.14.tgz#505c4cb9e9d74278d168062098b1e40856ba119d"
   integrity sha512-ZmfMSgxlhl4fmcdQHd0CoyQ0LpFq+oQue7namBwew4W6BOssWRX2Jmujfcpyc/YzIpOzugDTYAzvCcGzwUwYSQ==
