@@ -13,6 +13,11 @@ import { formatWebpackMessages } from '../lib/formatWebpackMessages'
 
 export const MAX_BUILD_SIZE = 1024 * 400
 
+const BUILD_ASYNC_CODE_TEMPLATE = `
+  import main from '{filePath}';
+  main.apply(null, globalThis.scriptArgs).then(result => {console.info(result);globalThis.scriptOutput = result});
+`
+
 const BUILD_CODE_TEMPLATE = `
   import main from '{filePath}';
   globalThis.scriptOutput = main.apply(null, globalThis.scriptArgs);
@@ -72,11 +77,14 @@ const getBaseConfig = (
   },
 })
 
-
-function modifyFilePath(filePath: string) {
-  const parsedPath = path.parse(filePath.replace(/([^/]+)$/, '_$1'))
+function removeExtension(filePath: string) {
+  const parsedPath = path.parse(filePath)
   const newPath = path.join(parsedPath.dir, parsedPath.name)
   return newPath
+}
+
+function modifyTargetPath(filePath: string) {
+  return removeExtension(filePath.replace(/([^/]+)$/, '_$1'))
 }
 
 export async function runWebpack({
@@ -87,6 +95,7 @@ export async function runWebpack({
   customWebpack,
   isDev = false,
   clean = false,
+  isAsync = false
 }: {
   buildEntries: Configuration['entry'],
   projectDir: string,
@@ -95,13 +104,18 @@ export async function runWebpack({
   customWebpack?: string,
   isDev: boolean,
   clean: boolean,
+  isAsync?: boolean
 }): Promise<Stats> {
+  const build_code_template = isAsync ? BUILD_ASYNC_CODE_TEMPLATE : BUILD_CODE_TEMPLATE
   const virtualModules = new VirtualModulesPlugin(Object.entries(buildEntries || {}).reduce((acc, [, value]) => {
-    acc[path.join(projectDir, modifyFilePath(value))] = BUILD_CODE_TEMPLATE.replace(/{filePath}/g, upath.join(projectDir, value))
+    acc[path.join(projectDir, modifyTargetPath(value))] = build_code_template.replace(
+      /{filePath}/g,
+      upath.join(projectDir, removeExtension(value)),
+    )
     return acc
   }, {} as Record<string, string>))
   const newBuildEntries = Object.entries(buildEntries || {}).reduce((acc, [key, value]) => {
-    acc[key] = upath.join(projectDir, modifyFilePath(value))
+    acc[key] = upath.join(projectDir, modifyTargetPath(value))
     return acc
   }, {} as Record<string, string>)
 
