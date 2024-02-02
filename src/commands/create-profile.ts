@@ -2,6 +2,11 @@ import { Flags } from '@oclif/core'
 import type { Struct, u128, u64, Result } from '@polkadot/types'
 import { getContract } from '@phala/sdk'
 import type { AccountId } from '@polkadot/types/interfaces'
+import { english, generateMnemonic, mnemonicToAccount } from 'viem/accounts'
+import { toHex } from 'viem/utils'
+import { mnemonicToMiniSecret } from '@polkadot/util-crypto'
+import { u8aToHex } from '@polkadot/util'
+import chalk from 'chalk'
 
 import PhatBaseCommand, { type ParsedFlags, type BrickProfileFactoryContract, type BrickProfileContract } from '../lib/PhatBaseCommand'
 
@@ -11,8 +16,16 @@ interface PartialAccountQueryResult extends Struct {
   }
 }
 
-export default class CreateBrickProfile extends PhatBaseCommand {
-  static description = 'Create brick profile'
+type CreateBrickProfileArgs = ParsedFlags & {
+  evmRpcEndpoint: string
+  generate?: boolean
+  type: 'substrate' | 'evm'
+}
+
+const MINIMAL_PHA = 50
+
+export default class CreateDashboardProfile extends PhatBaseCommand {
+  static description = 'Create Dashboard Profile'
 
   static args = {
     ...PhatBaseCommand.args
@@ -24,11 +37,57 @@ export default class CreateBrickProfile extends PhatBaseCommand {
       description: 'EVM RPC endpoint',
       required: false,
     }),
+    generate: Flags.boolean({
+      description: 'Generate mnemonic and use for Phat Contract Dashboard.',
+      required: false,
+    }),
+    type: Flags.string({
+      description: 'One of substrate or evm. Default is substrate. NOTE: evm account support now only available on PoC6 testnet.',
+      required: false,
+      default: 'substrate',
+      options: ['substrate', 'evm'],
+      helpValue: 'substrate|evm',
+    }),
   }
 
   public async run(): Promise<void> {
-    const { evmRpcEndpoint } = this.parsedFlags as ParsedFlags & {
-      evmRpcEndpoint: string
+    const { generate, type: accountType, evmRpcEndpoint, addressIndex } = this.parsedFlags as CreateBrickProfileArgs
+    if (!generate) {
+      if (
+        !this.parsedFlags.mnemonic
+        && !this.parsedFlags.privateKey
+        && !this.parsedFlags.suri
+        && !process.env.PRIVATE_KEY
+        && !process.env.POLKADOT_WALLET_SURI
+        && !process.env.MNEMONIC
+      ) {
+        return this.error('You need specified one of --mnemonic, --privateKey, --suri or --generate to continuing.')
+      }
+    } else {
+      const mnemonic = generateMnemonic(english)
+      this.log('\nPlease copy the following recovery phrase and keep it safe.\n')
+      this.log(chalk.red(mnemonic), '\n')
+      if (accountType === 'substrate') {
+        const suri = u8aToHex(mnemonicToMiniSecret(mnemonic))
+        this.parsedFlags.suri = suri
+        this.log('Please run following command to save your account to .env file.\n')
+        this.log(chalk.green(`echo 'POLKADOT_WALLET_SURI=${suri}' >> .env`))
+      } else if (accountType === 'evm') {
+        this.warn('You are generating EVM account, please note it only available on PoC6 testnet now.')
+        const account = mnemonicToAccount(mnemonic, { addressIndex })
+        this.parsedFlags.privateKey = toHex(account.getHdKey().privateKey!)
+        this.log('')
+        this.log('Please run following command to save your account to .env file.\n')
+        this.log(chalk.green(`echo 'PRIVATE_KEY=${toHex(account.getHdKey().privateKey!)}' >> .env`))
+      } else {
+        return this.error('You need specified --type to continuing.')
+      }
+      this.log('')
+      this.log(`You need at least ${MINIMAL_PHA} PHA to continuing.`)
+      this.log('Learn more on get test tokens from Faucet: https://phala.network/posts/how-to-create-a-phat-dashboard-account-and-get-test-tokens')
+      this.log('')
+      this.log('Once you have tokens in account, rerun this command without --generate flag.')
+      this.log('')
     }
 
     if (evmRpcEndpoint) {
@@ -40,8 +99,15 @@ export default class CreateBrickProfile extends PhatBaseCommand {
     const [apiPromise, registry, type] = await this.connect({ endpoint })
     const provider = await this.getProvider({ apiPromise })
 
-    // check if brick profile already exists
-    this.action.start('Checking your brick profile contract ID')
+    this.log('Your address is', chalk.blue(provider.address))
+
+    if (generate) {
+      return process.exit(0)
+    }
+    this.log('')
+
+    // check if profile already exists
+    this.action.start('Checking your Dashboard Profile contract ID')
     const brickProfileFactoryContractId = await this.getBrickProfileFactoryContractId(endpoint)
     const brickProfileFactoryAbi = await this.loadAbiByContractId(
       registry,
@@ -55,23 +121,23 @@ export default class CreateBrickProfile extends PhatBaseCommand {
     })
     const { output } = await brickProfileFactory.q.getUserProfileAddress<Result<AccountId, any>>()
     if (output.isOk && output.asOk.isOk) {
-      this.action.succeed(`Your Brick Profile already exists, contract ID: ${output.asOk.asOk.toHex()}`)
+      this.action.succeed(`Your Dashboard Profile already exists, contract ID: ${output.asOk.asOk.toHex()}`)
       process.exit(0)
     }
-    this.action.succeed('Your brick profile does not exist')
+    this.action.succeed('Your Dashboard Profile does not exist')
 
     // check balance
     this.action.start('Checking account balance')
     const accountQueryResult = await registry.api.query.system.account<PartialAccountQueryResult>(provider.address)
     const balance = Number(accountQueryResult.data.free.toBigInt() / BigInt(1e12))
-    if (balance < 50) {
-      this.action.fail(`Insufficient on-chain balance, please go to ${type.isDevelopment || type.isLocal ? 'https://phala.network/faucet' : 'https://docs.phala.network/introduction/basic-guidance/get-pha-and-transfer'} to get more than 50 PHA before continuing the process.`)
+    if (balance < MINIMAL_PHA) {
+      this.action.fail(`Insufficient on-chain balance, please go to ${type.isDevelopment || type.isLocal ? 'https://phala.network/faucet' : 'https://docs.phala.network/introduction/basic-guidance/get-pha-and-transfer'} to get more than ${MINIMAL_PHA} PHA before continuing the process.`)
       process.exit(0)
     }
     this.action.succeed(`Account balance: ${balance} PHA`)
 
     try {
-      this.action.start('Creating your brick profile')
+      this.action.start('Creating your Dashboard Profile')
       await brickProfileFactory.exec.createUserProfile({
         waitFinalized: async () => {
           const { output } = await brickProfileFactory.q.getUserProfileAddress<Result<AccountId, any>>()
@@ -125,10 +191,16 @@ export default class CreateBrickProfile extends PhatBaseCommand {
           evmRpcEndpoint: evmRpcEndpoint || (type.isDevelopment || type.isLocal) ? 'https://polygon-mumbai.g.alchemy.com/v2/YWlujLKt0nSn5GrgEpGCUA0C_wKV1sVQ' : 'https://polygon-mainnet.g.alchemy.com/v2/W1kyx17tiFQFT2b19mGOqppx90BLHp0a',
         })
       }
-      this.action.succeed(`Created successfully.`)
+      this.action.succeed(`Profile Created.`)
+
+      this.log('')
+      this.log(chalk.green('Your profile is ready to use.'))
+      this.log('')
+      this.log('You can continuing with CLI or Web UI: https://dashboard.phala.network/')
+
       process.exit(0)
     } catch (error) {
-      this.action.fail('Failed to create brick profile.')
+      this.action.fail('Failed to create Dashboard Profile.')
       return this.error(error as Error)
     }
   }

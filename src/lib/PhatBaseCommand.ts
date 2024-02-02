@@ -45,10 +45,10 @@ export interface ParsedFlags {
   readonly brickProfileFactory: string
   readonly rpc: string
   readonly consumerAddress: string
-  readonly suri: string
+  suri: string
   readonly accountFilePath: string
   readonly accountPassword: string
-  readonly privateKey: string
+  privateKey: string
   readonly mnemonic: string
   readonly addressIndex: number
   readonly coreSettings: string
@@ -178,7 +178,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       required: false,
     }),
     brickProfileFactory: Flags.string({
-      description: 'Brick profile factory contract id',
+      description: 'Dashboard Profile factory contract id',
       required: false,
       default: '',
     }),
@@ -216,6 +216,8 @@ export default abstract class PhatBaseCommand extends BaseCommand {
   public parsedFlags!: ParsedFlags
   public parsedArgs!: ParsedArgs
 
+  protected _isTestnet: boolean = false
+
   async init(): Promise<void> {
     const {
       flags,
@@ -242,6 +244,8 @@ export default abstract class PhatBaseCommand extends BaseCommand {
       }
       console.log(...args)
     }
+
+    this._isTestnet = this.parsedFlags.mode === 'development' || this.parsedFlags.mode === 'dev'
   }
 
   getEndpoint() {
@@ -308,7 +312,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
     const { output } = await contract.q.getUserProfileAddress<Result<AccountId, any>>()
 
     if (!output.isOk || !output.asOk.isOk) {
-      this.action.fail('You need to create the Brick Profile before continuing.\nPlease run the command: npx @phala/fn create-brick-profile')
+      this.action.fail('You need to create the Dashboard Profile before continuing.\nPlease run the command: npx @phala/fn create-brick-profile')
       this.exit(1)
     }
 
@@ -328,7 +332,10 @@ export default abstract class PhatBaseCommand extends BaseCommand {
     const type = await registry.api.rpc.system.chainType()
     this.action.succeed(`Connected to the endpoint: ${endpoint}`)
     if (type.isDevelopment || type.isLocal) {
+      this._isTestnet = true
       this.log(chalk.yellow(`\nYou are connecting to a testnet.\n`))
+    } else {
+      this._isTestnet = false
     }
     return [registry.api, registry, type]
   }
@@ -486,7 +493,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
   }
 
   async promptBrickProfileFactory(
-    message = 'Please enter the brick profile factory contract ID'
+    message = 'Please enter the dashboard profile factory contract ID'
   ): Promise<string> {
     const { brickProfileFactory } = await inquirer.prompt([
       {
@@ -528,7 +535,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
         chain: mainnet,
         transport: http()
       })
-      const provider = await EvmAccountMappingProvider.create(apiPromise, client, account)
+      const provider = await EvmAccountMappingProvider.create(apiPromise, client, account, { SS58Prefix: 30 })
       return provider
     }
     if (this.parsedFlags.mnemonic || (process.env.MNEMONIC && !this.parsedFlags.suri && !this.parsedFlags.accountFilePath)) {
@@ -536,15 +543,14 @@ export default abstract class PhatBaseCommand extends BaseCommand {
         this.action.fail('The current connected chain does not support EVM wallets.')
         this.exit(1)
       }
-      const account = mnemonicToAccount(this.parsedFlags.mnemonic || process.env.MNEMONIC!, {
-        addressIndex: this.parsedFlags.addressIndex,
-      })
+      const addressIndex = Number(process.env.EVM_MNEMONIC_ADDRESS_INDEX || this.parsedFlags.addressIndex)
+      const account = mnemonicToAccount(this.parsedFlags.mnemonic || process.env.MNEMONIC!, { addressIndex })
       const client = createWalletClient({
         account,
         chain: mainnet,
         transport: http()
       })
-      const provider = await EvmAccountMappingProvider.create(apiPromise, client, account)
+      const provider = await EvmAccountMappingProvider.create(apiPromise, client, account, { SS58Prefix: 30 })
       return provider
     }
     const pair = await this.getDecodedPair({
@@ -558,7 +564,7 @@ export default abstract class PhatBaseCommand extends BaseCommand {
 
   async getDecodedPair({ suri, accountFilePath, accountPassword }: { suri?: string, accountFilePath?: string, accountPassword?: string }): Promise<KeyringPair> {
     await waitReady()
-    const keyring = new Keyring({ type: 'sr25519' })
+    const keyring = new Keyring({ type: 'sr25519', ss58Format: 30 })
     let pair: KeyringPair
 
     if (accountFilePath) {

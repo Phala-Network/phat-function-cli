@@ -602,10 +602,10 @@
   resolved "https://registry.yarnpkg.com/@phala/pink-env/-/pink-env-1.0.13.tgz#8dda19538733588f7fb9c5d81f61bf118d37d63d"
   integrity sha512-yo/mxBRs+auJz7/k3jeSiQFk6UZpvAdivrFPpQZb2a76vrSLHH5eU86CuZedpvZNBggUde7QUVo8TT6MGQWV+Q==
 
-"@phala/sdk@0.6.0-beta.10":
-  version "0.6.0-beta.10"
-  resolved "https://registry.yarnpkg.com/@phala/sdk/-/sdk-0.6.0-beta.10.tgz#ddf20f0757e35ce5e4091af94635db676ac767df"
-  integrity sha512-rx4xK91G5LjNJudtTfFeTtwcuI0LeRG/YIDH4gzaX5M3r8vffUoB5WFfbEaIiQwfhvKVJ6FcD9svX8uRb3B/dQ==
+"@phala/sdk@0.6.0-beta.14":
+  version "0.6.0-beta.14"
+  resolved "https://registry.yarnpkg.com/@phala/sdk/-/sdk-0.6.0-beta.14.tgz#505c4cb9e9d74278d168062098b1e40856ba119d"
+  integrity sha512-ZmfMSgxlhl4fmcdQHd0CoyQ0LpFq+oQue7namBwew4W6BOssWRX2Jmujfcpyc/YzIpOzugDTYAzvCcGzwUwYSQ==
   dependencies:
     "@polkadot/api" "~10.11.1"
     "@polkadot/api-contract" "~10.11.1"

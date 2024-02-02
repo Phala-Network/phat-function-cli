@@ -4,6 +4,7 @@ import {
   getContract,
   PinkBlueprintPromise,
 } from '@phala/sdk'
+import chalk from 'chalk'
 
 import PhatBaseCommand from '../lib/PhatBaseCommand'
 import type { BrickProfileContract, ActionOffChainRollupContract } from '../lib/PhatBaseCommand'
@@ -20,7 +21,7 @@ export default class Upload extends PhatBaseCommand {
   }
 
   public async run(): Promise<void> {
-    const rpc = this.parsedFlags.rpc || (await this.promptRpc())
+    const rpc = this.parsedFlags.rpc || process.env.MUMBAI_RPC_URL || process.env.POLYGON_RPC_URL || (await this.promptRpc())
     const consumerAddress = this.parsedFlags.consumerAddress || (await this.promptConsumerAddress())
 
     const buildScriptPath = await this.buildOrGetScriptPath()
@@ -31,7 +32,7 @@ export default class Upload extends PhatBaseCommand {
     const provider = await this.getProvider({ apiPromise })
 
     // query the brick profile contract id
-    this.action.start('Querying your Brick Profile contract ID')
+    this.action.start('Querying your Dashboard Profile contract ID')
     const brickProfileContractId = await this.getBrickProfileContractId({
       endpoint,
       registry,
@@ -47,7 +48,7 @@ export default class Upload extends PhatBaseCommand {
       abi: brickProfileAbi,
       provider,
     })
-    this.action.succeed(`Your Brick Profile contract ID: ${brickProfileContractId}`)
+    this.action.succeed(`Your Dashboard Profile contract ID: ${brickProfileContractId}`)
 
     // instantiating the ActionOffchainRollup contract
     this.action.start('Instantiating the ActionOffchainRollup contract')
@@ -122,11 +123,17 @@ export default class Upload extends PhatBaseCommand {
       ],
       waitFinalized: true,
     })
-    this.action.succeed(
-      `🎉 Your workflow has been added, you can check it out here: https://bricks.phala.network/workflows/${brickProfileContractId}/${num}`
-    )
-    this.log('Your Attestor address:', attestor)
-    this.log('Your WORKFLOW_ID:', numberQuery.asOk.toNumber())
+    const workflowId = numberQuery.asOk.toNumber()
+    this.action.succeed(`🎉 Your workflow has been added, you can check it out here: https://dashboard.phala.network/workflows/${brickProfileContractId}/${num}`)
+    this.log(`You need connect Phat Contract and your EVM Smart Contract together to make it work:\n`)
+    this.log(chalk.green(`MUMBAI_PHALA_ORACLE_ATTESTOR=${attestor} WORKFLOW_ID=${workflowId} npm run test-set-attestor`))
+    this.log('\nAnd this is for the mainnet:\n')
+    this.log(chalk.green(`POLYGON_PHALA_ORACLE_ATTESTOR=${attestor} WORKFLOW_ID=${workflowId} npm run main-set-attestor`))
+    this.log(`\nYou can continuing update the Phat Contract script with following command:\n`)
+    this.log(chalk.green(`npx @phala/fn update --mode dev --workflowId=${workflowId}`))
+    this.log(`\nAnd this one is for mainnet:\n`)
+    this.log(chalk.green(`npx @phala/fn update --workflowId=${workflowId}`))
+    this.log('')
     process.exit(0)
   }
 }

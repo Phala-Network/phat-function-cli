@@ -25,13 +25,13 @@ export default class ListEvmAccounts extends PhatBaseCommand {
     const provider = await this.getProvider({ apiPromise })
 
     // query the brick profile contract id
-    this.action.start('Querying your Brick Profile contract ID')
+    this.action.start('Querying your Dashboard Profile contract ID')
     const brickProfileContractId = await this.getBrickProfileContractId({
       endpoint,
       registry,
       provider,
     })
-    this.action.succeed(`Your Brick Profile contract ID: ${brickProfileContractId}`)
+    this.action.succeed(`Your Dashboard Profile contract ID: ${brickProfileContractId}`)
 
     // querying your external accounts
     try {
@@ -62,6 +62,10 @@ export default class ListEvmAccounts extends PhatBaseCommand {
           rpcEndpoint: obj.rpc,
         }
       })
+      if (accounts.length === 0) {
+        this.log('You have no external accounts, please call `add-evm-account` first.')
+        process.exit(0)
+      }
       accounts.map(account => this.log(`[${account.id}] ${account.address} ${chalk.dim(account.rpcEndpoint)}`))
       process.exit(0)
     } catch (error) {
