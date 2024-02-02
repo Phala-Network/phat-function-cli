@@ -47,6 +47,10 @@ export default class Build extends BaseCommand {
       options: ['production', 'prod', 'development', 'dev'],
       default: 'production',
     })(),
+    experimentalAsync: Flags.boolean({
+      description: 'Build async code',
+      default: false
+    }),
   }
 
   public async run(): Promise<void> {
@@ -101,6 +105,7 @@ export default class Build extends BaseCommand {
         customWebpack: flags.webpack,
         buildEntries,
         isDev,
+        isAsync: flags.experimentalAsync,
       })
       if (!flags.silent) {
         this.action.stop()
