@@ -1,7 +1,7 @@
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import upath from 'upath'
-import webpack, { Configuration, Stats, StatsCompilation } from 'webpack'
+import webpack, { Configuration, Stats, StatsCompilation, RuleSetRule } from 'webpack'
 import TerserPlugin from 'terser-webpack-plugin'
 import VirtualModulesPlugin from 'webpack-virtual-modules'
 import { merge, mergeWithCustomize, customizeArray } from 'webpack-merge'
@@ -15,7 +15,7 @@ export const MAX_BUILD_SIZE = 1024 * 400
 
 const BUILD_ASYNC_CODE_TEMPLATE = `
   import main from '{filePath}';
-  main.apply(null, globalThis.scriptArgs).then(result => {console.info(result);globalThis.scriptOutput = result});
+  main.apply(null, globalThis.scriptArgs).then(result => globalThis.scriptOutput = result);
 `
 
 const BUILD_CODE_TEMPLATE = `
@@ -28,54 +28,60 @@ const getBaseConfig = (
   projectDir: string,
   outputDir?: string,
   development?: boolean,
-): webpack.Configuration => ({
-  mode: development ? 'development' : 'production',
-  context: projectDir,
-  entry: buildEntries,
-  optimization: development ? {} : {
-    usedExports: true,
-    minimize: true,
-    minimizer: [new TerserPlugin({
-      extractComments: false,
-      terserOptions: {
-        output: {
-          comments: false,
-        },
-      },
-    })],
-  },
-  module: {
-    rules: [
-      {
-        test: /\.ts$/,
-        exclude: /node_modules/,
-        loader: require.resolve('ts-loader'),
-        options: {
-          context: projectDir,
-          configFile: require.resolve('../../tsconfig.build.json'),
-          onlyCompileBundledFiles: true,
-        }
-      },
-      {
-        test: /keccak256\.js$/,
-        loader: require.resolve('string-replace-loader'),
-        options: {
-          search: /import { keccak_256 } from '@noble\/hashes\/sha3';/,
-          replace: `const keccak_256 = value => pink.hash('keccak256', value);`,
-        }
+  isAsync = false
+): webpack.Configuration => {
+  const rules: RuleSetRule[] = [
+    {
+      test: /\.ts$/,
+      exclude: /node_modules/,
+      loader: require.resolve('ts-loader'),
+      options: {
+        context: projectDir,
+        configFile: require.resolve('../../tsconfig.build.json'),
+        onlyCompileBundledFiles: true,
       }
-    ],
-  },
+    },
+  ]
+  if (!isAsync) {
+    rules.push({
+      test: /keccak256\.js$/,
+      loader: require.resolve('string-replace-loader'),
+      options: {
+        search: /import { keccak_256 } from '@noble\/hashes\/sha3';/,
+        replace: `const keccak_256 = value => pink.hash('keccak256', value);`,
+      }
+    })
+  }
+  return {
+    mode: development ? 'development' : 'production',
+    context: projectDir,
+    entry: buildEntries,
+    optimization: development ? {} : {
+      usedExports: true,
+      minimize: true,
+      minimizer: [new TerserPlugin({
+        extractComments: false,
+        terserOptions: {
+          output: {
+            comments: false,
+          },
+        },
+      })],
+    },
+    module: {
+      rules,
+    },
 
-  resolve: {
-    extensions: ['.ts', '.js'],
-  },
+    resolve: {
+      extensions: ['.ts', '.js'],
+    },
 
-  output: {
-    path: outputDir,
-    filename: '[name].js',
-  },
-})
+    output: {
+      path: outputDir,
+      filename: '[name].js',
+    },
+  }
+}
 
 function removeExtension(filePath: string) {
   const parsedPath = path.parse(filePath)
@@ -120,7 +126,7 @@ export async function runWebpack({
   }, {} as Record<string, string>)
 
   let config = merge(
-    getBaseConfig(newBuildEntries, projectDir, outputDir, isDev),
+    getBaseConfig(newBuildEntries, projectDir, outputDir, isDev, isAsync),
     {
       output: {
         clean,
