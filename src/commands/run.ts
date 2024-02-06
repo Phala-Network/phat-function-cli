@@ -14,6 +14,10 @@ export default class Run extends Command {
       description: 'Script arguments',
       multiple: true,
     }),
+    experimentalAsync: Flags.boolean({
+      description: 'Run async code',
+      default: false
+    }),
   }
 
   static args = {
@@ -25,12 +29,15 @@ export default class Run extends Command {
 
   public async run(): Promise<{ output: string }> {
     const {
-      flags: { scriptArgs = [] },
+      flags: { scriptArgs = [], experimentalAsync },
       args: { script },
     } = await this.parse(Run)
     const scriptPath = resolveToAbsolutePath(script)
     const js = readFileSync(scriptPath, 'utf8')
-    const output = await runQuickJs(js, scriptArgs, { silent: this.jsonEnabled() })
+    const output = await runQuickJs(js, scriptArgs, {
+      silent: this.jsonEnabled(),
+      isAsync: experimentalAsync,
+    })
     this.log(JSON.stringify({ output }))
     return {
       output,

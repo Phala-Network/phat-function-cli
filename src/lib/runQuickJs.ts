@@ -7,6 +7,8 @@ import {
 } from '@polkadot/util-crypto'
 
 import request, { type HttpMethod } from './sync-request'
+import createSandbox from './sandbox'
+import { rejectOpenPromises } from './sandbox-wrappers'
 
 function isHexString(str: string): boolean {
   const regex = /^0x[0-9a-f]+$/
@@ -95,9 +97,9 @@ function polyfillConsole(context: QuickJSContext, silent: boolean) {
   const consoleHandle = context.newObject()
 
   if (silent) {
-    const handle = context.newFunction('info', () => {})
-    context.setProp(consoleHandle, 'info', handle)
+    const handle = context.newFunction('log', () => {})
     context.setProp(consoleHandle, 'log', handle)
+    context.setProp(consoleHandle, 'info', handle)
     context.setProp(consoleHandle, 'warn', handle)
     context.setProp(consoleHandle, 'error', handle)
     context.setProp(consoleHandle, 'debug', handle)
@@ -107,17 +109,17 @@ function polyfillConsole(context: QuickJSContext, silent: boolean) {
     return
   }
 
-  const infoHandle = context.newFunction('info', (...args) => {
-    const nativeArgs = args.map(context.dump)
-    console.info(...nativeArgs)
-  })
-  context.setProp(consoleHandle, 'info', infoHandle)
-
   const logHandle = context.newFunction('log', (...args) => {
     const nativeArgs = args.map(context.dump)
     console.log(...nativeArgs)
   })
   context.setProp(consoleHandle, 'log', logHandle)
+
+  const infoHandle = context.newFunction('info', (...args) => {
+    const nativeArgs = args.map(context.dump)
+    console.info(...nativeArgs)
+  })
+  context.setProp(consoleHandle, 'info', infoHandle)
 
   const warnHandle = context.newFunction('warn', (...args) => {
     const nativeArgs = args.map(context.dump)
@@ -195,9 +197,23 @@ function polyfillTextCoder(arena: Arena) {
 export async function runQuickJs(
   code: string,
   args: string[] = [],
-  options = { silent: false }
+  options = { silent: false, isAsync: false }
 ) {
   const QuickJS = await getQuickJS()
+  if (options.isAsync) {
+    const { vm, run, isAsyncProcessRunning } = await createSandbox(QuickJS, {}, {}, { silent: options.silent })
+    await run(code)
+    while(isAsyncProcessRunning()) {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+    const output = vm
+      .getProp(vm.global, 'scriptOutput')
+      .consume(vm.dump)
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    rejectOpenPromises(vm)
+    vm.dispose()
+    return output
+  }
   const runtime = QuickJS.newRuntime()
   const context = runtime.newContext()
   const arena = new Arena(context, { isMarshalable: true })
