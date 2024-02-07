@@ -99,7 +99,8 @@ export function wrapObject(
 ): any {
   const vmObject = vm.newObject()
 
-  for (const [key, value] of Object.entries(obj)) {
+  for (const key in obj) {
+    const value = obj[key]
     const wrappedValue = wrap(vm, value, obj, beginAsyncProcess, endAsyncProcess)
 
     if (wrappedValue !== null) {

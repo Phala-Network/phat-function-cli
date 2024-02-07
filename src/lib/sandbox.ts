@@ -1,17 +1,22 @@
+import upath from 'upath'
+import { readFileSync } from 'node:fs'
 import { QuickJSWASMModule } from 'quickjs-emscripten'
-import {
-  injectTimingFunctions,
-  wrap,
-  wrapObject,
-} from './sandbox-wrappers'
+
+import { injectTimingFunctions, wrap, wrapObject } from './sandbox-wrappers'
 
 export default async function createSandbox(
   QuickJS: QuickJSWASMModule,
   requireLookup: Record<string, any> = {},
   globals: Record<string, any> = {},
-  options: Record<string, any> = {},
+  options: Record<string, any> = {}
 ) {
   const vm = QuickJS.newContext()
+  vm.evalCode(
+    readFileSync(
+      require.resolve(upath.join(__dirname, 'sidevm-quickjs-bootcode.js')),
+      'utf8'
+    )
+  )
 
   let errorState = false
   let lastError = ''
@@ -34,6 +39,12 @@ export default async function createSandbox(
 
   const consoleHandle = vm.newObject()
   const exportsHandle = vm.newObject()
+
+  const fetchHandle = vm.newFunction('fetch', (...args) => {
+    const nativeArgs = args.map(vm.dump)
+    const result = fetch(nativeArgs[0], nativeArgs[1])
+    return wrap(vm, result, {}, beginAsyncProcess, endAsyncProcess)
+  })
 
   const logHandle = vm.newFunction('log', (...args) => {
     const nativeArgs = args.map(vm.dump)
@@ -62,14 +73,20 @@ export default async function createSandbox(
       lastError = JSON.stringify(nativeArgs)
       errorState = true
     } catch (e) {
-      console.log('Error in error:', e)
+      console.error('Error in error:', e)
     }
   })
 
   const globalNames = Object.getOwnPropertyNames(globals)
   for (let i = 0; i < globalNames.length; i++) {
-    const globalOption: any = globals[globalNames[i]]
-    const globalObj = wrap(vm, globalOption.value, globalOption, beginAsyncProcess, endAsyncProcess)
+    const globalValue: any = globals[globalNames[i]]
+    const globalObj = wrap(
+      vm,
+      globalValue,
+      undefined,
+      beginAsyncProcess,
+      endAsyncProcess
+    )
 
     vm.setProp(vm.global, globalNames[i], globalObj)
     globalObj.dispose()
@@ -79,8 +96,13 @@ export default async function createSandbox(
 
   const requireHandle = vm.newFunction('require', (...args: any) => {
     const nativeArgs = args.map(vm.dump)
-    if(requireLookup[nativeArgs[0] as string]) {
-      const returnObj = wrapObject(vm, requireLookup[nativeArgs[0] as string], beginAsyncProcess, endAsyncProcess)
+    if (requireLookup[nativeArgs[0] as string]) {
+      const returnObj = wrapObject(
+        vm,
+        requireLookup[nativeArgs[0] as string],
+        beginAsyncProcess,
+        endAsyncProcess
+      )
       return returnObj
     } else {
       return vm.undefined
@@ -108,10 +130,12 @@ export default async function createSandbox(
     errorHandle.dispose()
   }
 
+  vm.setProp(vm.global, 'fetch', fetchHandle)
   vm.setProp(vm.global, 'console', consoleHandle)
   vm.setProp(vm.global, 'require', requireHandle)
   vm.setProp(vm.global, 'exports', exportsHandle)
 
+  fetchHandle.dispose()
   consoleHandle.dispose()
   requireHandle.dispose()
   exportsHandle.dispose()
@@ -122,35 +146,21 @@ export default async function createSandbox(
       return lastError
     },
     isAsyncProcessRunning,
-    run: (compiled: string): boolean => {
+    run: (code: string): boolean => {
       try {
         errorState = false
-        const result = vm.evalCode(compiled)
+        const result = vm.evalCode(code)
 
         if (result.error) {
-          // log out the compiled program with line numbers
-          const lines = compiled.split('\n')
-          for (let i = 0; i < lines.length; i++) {
-            console.log(`${i + 1}: ${lines[i]}`)
-          }
-
-          console.log('Execution failed:', vm.dump(result.error))
-
+          console.error('Execution failed:', vm.dump(result.error))
           result.error.dispose()
           return false
         } else {
           result.value.dispose()
-
-          if (errorState) {
-            const lines = compiled.split('\n')
-            for (let i = 0; i < lines.length; i++) {
-              console.log(`${i + 1}: ${lines[i]}`)
-            }
-          }
           return !errorState
         }
       } catch (e) {
-        console.log(e)
+        console.error(e)
       }
 
       return false
