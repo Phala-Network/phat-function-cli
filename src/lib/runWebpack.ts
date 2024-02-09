@@ -37,7 +37,12 @@ const getBaseConfig = (
       loader: require.resolve('ts-loader'),
       options: {
         context: projectDir,
-        configFile: require.resolve('../../tsconfig.build.json'),
+        configFile: require.resolve(upath.join(
+          __dirname,
+          '..',
+          '..',
+          'tsconfig.build.json'
+        )),
         onlyCompileBundledFiles: true,
       }
     },

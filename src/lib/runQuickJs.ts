@@ -201,16 +201,21 @@ export async function runQuickJs(
 ) {
   const QuickJS = await getQuickJS()
   if (options.isAsync) {
-    const { vm, run, isAsyncProcessRunning } = await createSandbox(QuickJS, {}, {}, { silent: options.silent })
+    const { vm, run, isAsyncProcessRunning } = await createSandbox(
+      QuickJS,
+      {},
+      { scriptArgs: args },
+      { silent: options.silent }
+    )
     await run(code)
     while(isAsyncProcessRunning()) {
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    rejectOpenPromises(vm)
     const output = vm
       .getProp(vm.global, 'scriptOutput')
       .consume(vm.dump)
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    rejectOpenPromises(vm)
     vm.dispose()
     return output
   }
