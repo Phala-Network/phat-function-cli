@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import upath from 'upath'
 import type { u16 } from '@polkadot/types'
 import {
   getContract,
@@ -23,6 +24,13 @@ export default class Upload extends PhatBaseCommand {
   public async run(): Promise<void> {
     const rpc = this.parsedFlags.rpc || process.env.MUMBAI_RPC_URL || process.env.POLYGON_RPC_URL || (await this.promptRpc())
     const consumerAddress = this.parsedFlags.consumerAddress || (await this.promptConsumerAddress())
+
+    let derived = 'blank@0.0.0'
+    try {
+      const packageJson = JSON.parse(fs.readFileSync(upath.join(process.cwd(), 'package.json'), 'utf8'))
+      derived = `${packageJson.name}@${packageJson.version}`
+    } catch (err) {
+    }
 
     const buildScriptPath = await this.buildOrGetScriptPath()
 
@@ -99,6 +107,7 @@ export default class Upload extends PhatBaseCommand {
         config: {
           codeHash: rollupAbi.info.source.wasmHash.toHex(),
           callee: contract.address.toHex(),
+          package: derived,
           selector,
           input: [],
         },
