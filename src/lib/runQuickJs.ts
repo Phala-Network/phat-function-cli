@@ -7,8 +7,7 @@ import {
 } from '@polkadot/util-crypto'
 
 import request, { type HttpMethod } from './sync-request'
-import createSandbox from './sandbox'
-import { rejectOpenPromises } from './sandbox-wrappers'
+import { init, run } from '../lib/phatjs/phatjs.js'
 
 function isHexString(str: string): boolean {
   const regex = /^0x[0-9a-f]+$/
@@ -199,26 +198,12 @@ export async function runQuickJs(
   args: string[] = [],
   options = { silent: false, isAsync: false }
 ) {
-  const QuickJS = await getQuickJS()
   if (options.isAsync) {
-    const { vm, run, isAsyncProcessRunning } = await createSandbox(
-      QuickJS,
-      {},
-      { scriptArgs: args },
-      { silent: options.silent }
-    )
-    await run(code)
-    while(isAsyncProcessRunning()) {
-      await new Promise((resolve) => setTimeout(resolve, 100))
-    }
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    rejectOpenPromises(vm)
-    const output = vm
-      .getProp(vm.global, 'scriptOutput')
-      .consume(vm.dump)
-    vm.dispose()
+    init()
+    const output = run(['phatjs', '-c', code, '--', ...args])
     return output
   }
+  const QuickJS = await getQuickJS()
   const runtime = QuickJS.newRuntime()
   const context = runtime.newContext()
   const arena = new Arena(context, { isMarshalable: true })

@@ -27,7 +27,7 @@ export default class Run extends Command {
     }),
   }
 
-  public async run(): Promise<{ output: string }> {
+  public async run() {
     const {
       flags: { scriptArgs = [], experimentalAsync },
       args: { script },
@@ -39,8 +39,6 @@ export default class Run extends Command {
       isAsync: experimentalAsync,
     })
     this.log(JSON.stringify({ output }))
-    return {
-      output,
-    }
+    process.exit(0)
   }
 }
