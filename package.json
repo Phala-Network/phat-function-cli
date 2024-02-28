@@ -85,7 +85,7 @@
     }
   },
   "scripts": {
-    "build": "shx rm -rf dist && tsc -b && shx cp src/lib/phatjs/phatjs_bg.wasm dist/lib/phatjs/",
+    "build": "shx rm -rf dist && tsc -b && shx cp src/lib/phatjs/phatjs_bg.*.wasm dist/lib/phatjs/",
     "lint": "tsc --noEmit",
     "test": "mocha --forbid-only \"test/**/*.test.ts\""
   },

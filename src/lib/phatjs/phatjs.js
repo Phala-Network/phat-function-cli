@@ -638,7 +638,7 @@ module.exports.__wbindgen_closure_wrapper1483 = function(arg0, arg1, arg2) {
 };
 
 module.exports.init = function() {
-  const path = require('upath').join(__dirname, 'phatjs_bg.wasm');
+  const path = require('upath').join(__dirname, 'phatjs_bg.0.10.1.wasm');
   const bytes = require('fs').readFileSync(path);
   const wasmModule = new WebAssembly.Module(bytes);
   const wasmInstance = new WebAssembly.Instance(wasmModule, imports);
