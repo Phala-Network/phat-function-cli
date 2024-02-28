@@ -433,11 +433,11 @@ module.exports.__wbg_error_b834525fe62708f5 = function(arg0) {
 };
 
 module.exports.__wbg_warn_2a68e3ab54e55f28 = function(arg0) {
-    // console.warn(getObject(arg0));
+    console.warn(getObject(arg0));
 };
 
 module.exports.__wbg_info_12174227444ccc71 = function(arg0) {
-    // console.info(getObject(arg0));
+    console.info(getObject(arg0));
 };
 
 module.exports.__wbg_debug_7d82cf3cd21e00b0 = function(arg0) {
@@ -449,7 +449,7 @@ module.exports.__wbg_trace_0758f8b7ad9dd839 = function(arg0) {
 };
 
 module.exports.__wbg_log_71d60d16f278bc00 = function(arg0, arg1) {
-    // console.log(getObject(arg0), getObject(arg1));
+    console.log(getObject(arg0), getObject(arg1));
 };
 
 module.exports.__wbg_error_a2c41f67d42ff592 = function(arg0, arg1) {
