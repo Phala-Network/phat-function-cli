@@ -15,7 +15,7 @@ export const MAX_BUILD_SIZE = 1024 * 400
 
 const BUILD_ASYNC_CODE_TEMPLATE = `
   import main from '{filePath}';
-  main.apply(null, globalThis.scriptArgs).then(result => globalThis.scriptOutput = result);
+  main.apply(null, globalThis.scriptArgs).then(result => globalThis.scriptOutput = result).catch(err => globalThis.scriptOutput = JSON.stringify({error: err, success: false}));
 `
 
 const BUILD_CODE_TEMPLATE = `
