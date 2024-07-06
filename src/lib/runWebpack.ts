@@ -139,6 +139,9 @@ export async function runWebpack({
       },
       plugins: [
         virtualModules,
+        new webpack.optimize.LimitChunkCountPlugin({
+          maxChunks: 1,
+        }),
       ]
     },
   )
